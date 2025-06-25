@@ -1,8 +1,8 @@
 package com.project.chaechaeserver.presentation.controller.user;
 
 import com.project.chaechaeserver.application.global.dto.ResDTO;
-import com.project.chaechaeserver.application.user.service.InternalUserService;
-import com.project.chaechaeserver.application.user.response.ResInternalUserPostSignupDTO;
+import com.project.chaechaeserver.application.service.user.InternalUserService;
+import com.project.chaechaeserver.application.response.user.ResInternalUserPostSignupDTO;
 import com.project.chaechaeserver.presentation.request.user.ReqInternalUserPostSignupDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

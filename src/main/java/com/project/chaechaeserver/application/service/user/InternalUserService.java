@@ -1,6 +1,6 @@
-package com.project.chaechaeserver.application.user.service;
+package com.project.chaechaeserver.application.service.user;
 
-import com.project.chaechaeserver.application.user.response.ResInternalUserPostSignupDTO;
+import com.project.chaechaeserver.application.response.user.ResInternalUserPostSignupDTO;
 import com.project.chaechaeserver.domain.model.user.InternalUserEntity;
 import com.project.chaechaeserver.domain.model.user.constraint.PositionType;
 import com.project.chaechaeserver.domain.model.user.constraint.RoleType;

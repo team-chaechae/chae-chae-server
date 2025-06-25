@@ -1,4 +1,4 @@
-package com.project.chaechaeserver.application.user.response;
+package com.project.chaechaeserver.application.response.user;
 
 import com.project.chaechaeserver.domain.model.user.InternalUserEntity;
 import lombok.AllArgsConstructor;
