@@ -20,7 +20,7 @@ public class InternalUserController {
 
     private final InternalUserService internalUserService;
 
-    @PostMapping
+    @PostMapping("/signup")
     public ResponseEntity<ResDTO<ResInternalUserPostSignupDTO>> signup(@RequestBody @Valid ReqInternalUserPostSignupDTO dto) {
 
         return new ResponseEntity<>(
