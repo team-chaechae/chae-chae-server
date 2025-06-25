@@ -7,15 +7,16 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum RoleType {
 
-    EMPLOYEE(Role.EMPLOYEE),
-    CUSTOMER(Role.CUSTOMER),
-    ADMIN(Role.ADMIN);
+    EMPLOYEE(Role.EMPLOYEE, "직원"),
+    CUSTOMER(Role.CUSTOMER, "고객"),
+    ADMIN(Role.ADMIN, "관리자");
 
     private final String role;
+    private final String displayName;
 
-    private static class Role {
-        public static final String EMPLOYEE = "직원";
-        public static final String CUSTOMER = "고객";
-        public static final String ADMIN = "관리자";
+    public static class Role {
+        public static final String EMPLOYEE = "ROLE_EMPLOYEE";
+        public static final String CUSTOMER = "ROLE_CUSTOMER";
+        public static final String ADMIN = "ROLE_ADMIN";
     }
 }
