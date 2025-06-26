@@ -1,6 +1,7 @@
 package com.project.chaechaeserver.presentation.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.chaechaeserver.application.service.user.RedisRefreshTokenService;
 import com.project.chaechaeserver.domain.model.user.constraint.RoleType;
 import com.project.chaechaeserver.infrastructure.security.CustomUserDetails;
 import com.project.chaechaeserver.infrastructure.util.JwtUtil;
@@ -18,10 +19,13 @@ import java.io.IOException;
 
 @Slf4j(topic = "로그인 및 JWT 생성")
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
-    private final JwtUtil jwtUtil;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    private final JwtUtil jwtUtil;
+    private final RedisRefreshTokenService redisRefreshTokenService;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, RedisRefreshTokenService redisRefreshTokenService) {
         this.jwtUtil = jwtUtil;
+        this.redisRefreshTokenService = redisRefreshTokenService;
         setFilterProcessesUrl("/api/users/login");
     }
 
@@ -45,11 +49,24 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) {
-        String username = ((CustomUserDetails) authResult.getPrincipal()).getUsername();
+        String email = ((CustomUserDetails) authResult.getPrincipal()).getUsername();
         RoleType role = ((CustomUserDetails) authResult.getPrincipal()).getUser().getRole();
 
-        String token = jwtUtil.generateAccessJwt(username, role);
+        // Redis 에 Refresh Token 저장
+        if (redisRefreshTokenService.getRefreshToken(email) == null) {
+            String refreshJwt = jwtUtil.generateRefreshJwt();
+            redisRefreshTokenService.saveRefreshToken(email, refreshJwt);
+            response.addCookie(jwtUtil.generateRefreshJwtCookie(refreshJwt));
+
+            log.info("사용자 '{}' Refresh Token 발급 완료", email);
+        }
+
+        // Access Token 헤더에 담기
+        String token = jwtUtil.generateAccessJwt(email, role);
+
         response.addHeader(JwtUtil.ACCESS_JWT_HEADER, token);
+
+        log.info("사용자 '{}' 로그인 성공, Access Token 발급 완료", email);
     }
 
     @Override
