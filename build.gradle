@@ -30,6 +30,9 @@ dependencies {
     // MySQL
     runtimeOnly 'com.mysql:mysql-connector-j'
 
+    // Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
     // Web, Lombok, Valid, Test
     implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
