@@ -1,7 +1,10 @@
 package com.project.chaechaeserver.infrastructure.config;
 
+import com.project.chaechaeserver.application.service.user.RedisRefreshTokenService;
+import com.project.chaechaeserver.infrastructure.security.CustomUserDetailsService;
 import com.project.chaechaeserver.infrastructure.util.JwtUtil;
 import com.project.chaechaeserver.presentation.filter.JwtAuthenticationFilter;
+import com.project.chaechaeserver.presentation.filter.JwtAuthorizationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +25,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
+    private final RedisRefreshTokenService redisRefreshTokenService;
+    private final CustomUserDetailsService customUserDetailsService;
     private final AuthenticationConfiguration authenticationConfiguration;
 
     @Bean
@@ -36,9 +41,14 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() throws Exception {
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtUtil);
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtUtil, redisRefreshTokenService);
         filter.setAuthenticationManager(authenticationManager(authenticationConfiguration));
         return filter;
+    }
+
+    @Bean
+    public JwtAuthorizationFilter jwtAuthorizationFilter() {
+        return new JwtAuthorizationFilter(jwtUtil, customUserDetailsService, redisRefreshTokenService);
     }
 
     @Bean
@@ -59,6 +69,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
         );
 
+        // 필터 관리
+        http.addFilterBefore(jwtAuthorizationFilter(), JwtAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
