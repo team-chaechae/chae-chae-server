@@ -4,6 +4,7 @@ import com.project.chaechaeserver.domain.model.user.constraint.RoleType;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,9 +20,11 @@ import java.util.Date;
 public class JwtUtil {
 
     public static final String ACCESS_JWT_HEADER = "Authorization";
+    public static final String REFRESH_JWT_HEADER = "Refresh-Jwt";
     public static final String AUTHORIZATION_KEY = "auth";
     public static final String BEARER_PREFIX = "Bearer ";
     private final long ACCESS_TOKEN_TIME = 60 * 60 * 1000L; // 1시간
+    private final long REFRESH_TOKEN_TIME = 14 * 24 * 60 * 60 * 1000L; // 2주
     private final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
 
     @Value("${service.jwt.secret-key}")
@@ -45,6 +48,27 @@ public class JwtUtil {
                         .setIssuedAt(date)
                         .signWith(key, signatureAlgorithm)
                         .compact();
+    }
+
+    public String generateRefreshJwt() {
+        Date date = new Date();
+
+        return Jwts.builder()
+                .setExpiration(new Date(date.getTime() + REFRESH_TOKEN_TIME))
+                .setIssuedAt(date)
+                .signWith(key, signatureAlgorithm)
+                .compact();
+    }
+
+    public Cookie generateRefreshJwtCookie(String refreshJwt) {
+        Cookie refreshJwtCookie = new Cookie(REFRESH_JWT_HEADER, refreshJwt);
+
+        refreshJwtCookie.setHttpOnly(true);
+        refreshJwtCookie.setSecure(true);
+        refreshJwtCookie.setPath("/");
+        refreshJwtCookie.setMaxAge((int) REFRESH_TOKEN_TIME);
+
+        return refreshJwtCookie;
     }
 
     public String getJwtFromHeader(HttpServletRequest request) {
