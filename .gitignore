@@ -6,7 +6,7 @@ build/
 !**/src/test/**/build/
 .DS_Store
 /src/main/resources/application-key.yml
-
+.env.*
 ### STS ###
 .apt_generated
 .classpath
