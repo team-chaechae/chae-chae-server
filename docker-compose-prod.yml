@@ -1,0 +1,13 @@
+services:
+  backend:
+    image: hyeonmin2/chae-chae-server:latest
+    env_file:
+      - ./.env.backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - chae-chae-network
+    restart: unless-stopped
