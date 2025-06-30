@@ -1,0 +1,33 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-chae-chae
+    ports:
+      - "3306:3306"
+    env_file:
+      - ./.env.mysql
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - chae-chae-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:latest
+    container_name: redis-chae-chae
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - chae-chae-network
+    restart: unless-stopped
+
+networks:
+  chae-chae-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+
