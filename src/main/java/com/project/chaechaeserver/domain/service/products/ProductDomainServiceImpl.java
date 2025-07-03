@@ -3,8 +3,9 @@ package com.project.chaechaeserver.domain.service.products;
 import com.project.chaechaeserver.domain.repository.products.ProductsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-@Component
+@Service
 @RequiredArgsConstructor
 public class ProductDomainServiceImpl implements ProductDomainService {
 
