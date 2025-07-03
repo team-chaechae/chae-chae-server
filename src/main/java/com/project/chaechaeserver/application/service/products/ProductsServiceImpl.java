@@ -1,6 +1,6 @@
 package com.project.chaechaeserver.application.service.products;
 
-import com.project.chaechaeserver.application.response.products.ResCreateProductInfoDTO;
+import com.project.chaechaeserver.application.response.products.ResCreateProductPostDTO;
 import com.project.chaechaeserver.domain.model.products.ProductsEntity;
 import com.project.chaechaeserver.domain.repository.products.ProductsRepository;
 import com.project.chaechaeserver.domain.service.products.ProductDomainService;
@@ -19,7 +19,7 @@ public class ProductsServiceImpl implements ProductsService {
 
     @Override
     @Transactional
-    public ResCreateProductInfoDTO createProductInfo(ReqCreateProductsDTO request) {
+    public ResCreateProductPostDTO createProductInfo(ReqCreateProductsDTO request) {
 
         productDomainService.validateProductName(request.getProduct().getName());
 
@@ -33,7 +33,7 @@ public class ProductsServiceImpl implements ProductsService {
             )
         );
 
-        return ResCreateProductInfoDTO.of(
+        return ResCreateProductPostDTO.of(
             savedProduct.getId(),
             savedProduct.getName(),
             savedProduct.getCategory(),
