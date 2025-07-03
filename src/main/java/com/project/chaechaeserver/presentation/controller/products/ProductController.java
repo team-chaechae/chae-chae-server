@@ -3,7 +3,7 @@ package com.project.chaechaeserver.presentation.controller.products;
 import static com.project.chaechaeserver.domain.model.user.constraint.RoleType.Role.ADMIN;
 
 import com.project.chaechaeserver.application.global.dto.ResDTO;
-import com.project.chaechaeserver.application.response.products.ResCreateProductInfoDTO;
+import com.project.chaechaeserver.application.response.products.ResCreateProductPostDTO;
 import com.project.chaechaeserver.application.service.products.ProductsService;
 import com.project.chaechaeserver.presentation.request.products.ReqCreateProductsDTO;
 import lombok.RequiredArgsConstructor;
@@ -24,11 +24,11 @@ public class ProductController {
 
     @PostMapping
     @Secured(ADMIN)
-    public ResponseEntity<ResDTO<ResCreateProductInfoDTO>> createProduct(
+    public ResponseEntity<ResDTO<ResCreateProductPostDTO>> createProduct(
         @RequestBody ReqCreateProductsDTO request) {
 
         return new ResponseEntity<>(
-            ResDTO.<ResCreateProductInfoDTO>builder()
+            ResDTO.<ResCreateProductPostDTO>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("상품 생성 완료")
                 .data(productsService.createProductInfo(request))
