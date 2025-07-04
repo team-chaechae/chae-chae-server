@@ -42,7 +42,6 @@ public class ResCreateProductPostDTO {
                 .price(price)
                 .unit(unit)
                 .build();
-
         }
     }
 }
