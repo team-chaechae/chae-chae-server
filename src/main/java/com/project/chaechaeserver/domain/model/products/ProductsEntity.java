@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -14,7 +15,10 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-@Table(name = "products")
+@Table(name = "products",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_products_name", columnNames = "name")
+    })
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
@@ -22,22 +26,21 @@ public class ProductsEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "product_id")
     private Long id;
 
-    @Column(length = 50, nullable = false)
+    @Column(name = "name", length = 50, nullable = false)
     private String name;
 
-    @Column(length = 50, nullable = false)
+    @Column(name ="category" , length = 50, nullable = false)
     private String category;
 
-    @Column(nullable = false)
+    @Column(name = "price" ,nullable = false)
     private int price;
 
-    @Column(length = 10, nullable = false)
+    @Column(name = "unit", length = 10, nullable = false)
     private String unit;
 
-    @Column(nullable = false)
-    private boolean isDeleted;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
@@ -51,21 +54,19 @@ public class ProductsEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public ProductsEntity(String name, String category, int price, String unit, boolean isDeleted) {
+    public ProductsEntity(String name, String category, int price, String unit) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.unit = unit;
-        this.isDeleted = isDeleted;
     }
 
-    public static ProductsEntity createProducts(String name, String category, int price, String unit, boolean isDeleted) {
+    public static ProductsEntity createProducts(String name, String category, int price, String unit ) {
         return ProductsEntity.builder()
             .name(name)
             .category(category)
             .price(price)
             .unit(unit)
-            .isDeleted(isDeleted)
             .build();
     }
 
