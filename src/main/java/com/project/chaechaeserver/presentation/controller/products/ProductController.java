@@ -22,7 +22,7 @@ public class ProductController {
 
     private final ProductsService productsService;
 
-    @PostMapping
+    @PostMapping("/create")
     @Secured(ADMIN)
     public ResponseEntity<ResDTO<ResCreateProductPostDTO>> createProduct(
         @RequestBody ReqCreateProductsDTO request) {
