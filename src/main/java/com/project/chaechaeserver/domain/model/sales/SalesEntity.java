@@ -32,9 +32,6 @@ public class SalesEntity {
     @JoinColumn(name = "products_id")
     private ProductsEntity productsEntity;
 
-    @Column(name = "sold_at")
-    private LocalDateTime soldAt;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
