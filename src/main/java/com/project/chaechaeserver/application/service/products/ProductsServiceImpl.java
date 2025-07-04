@@ -28,8 +28,7 @@ public class ProductsServiceImpl implements ProductsService {
                 request.getProduct().getName(),
                 request.getProduct().getCategory(),
                 request.getProduct().getPrice(),
-                request.getProduct().getUnit(),
-                false
+                request.getProduct().getUnit()
             )
         );
 
