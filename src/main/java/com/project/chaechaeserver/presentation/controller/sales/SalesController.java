@@ -2,14 +2,19 @@ package com.project.chaechaeserver.presentation.controller.sales;
 
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.sales.ResSalesGetByIdDTO;
+import com.project.chaechaeserver.application.response.sales.ResSalesSearchDTO;
 import com.project.chaechaeserver.application.service.sales.SalesService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,6 +30,27 @@ public class SalesController {
                         .code(HttpStatus.OK.value())
                         .message("판매기록 상세조회에 성공하였습니다")
                         .data(salesService.getSalesBySalesId(salesId))
+                        .build(),
+                HttpStatus.OK
+        );
+    }
+
+
+    @GetMapping
+    public ResponseEntity<ResDTO<ResSalesSearchDTO>> searchSalesByCondition(@RequestParam(required = false) Boolean deleted,
+                                                                            @RequestParam(required = false) String productName,
+                                                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+                                                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate exactDate,
+                                                                            @RequestParam(required = false) List<String> sort,
+                                                                            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return new ResponseEntity<>(
+                ResDTO.<ResSalesSearchDTO>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("판매 기록 검색에 성공하였습니다.")
+                        .data(salesService.searchSalesByCondition(
+                                pageable, deleted, productName, startDate, endDate, exactDate, sort
+                        ))
                         .build(),
                 HttpStatus.OK
         );
