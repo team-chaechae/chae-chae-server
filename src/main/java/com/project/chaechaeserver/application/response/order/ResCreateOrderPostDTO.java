@@ -28,9 +28,9 @@ public class ResCreateOrderPostDTO {
 
     private Long orderId;
     private Long productId;
-    private int quantity;
-    private int unitCost;
-    private int totalCost;
+    private Integer quantity;
+    private Integer unitCost;
+    private Integer totalCost;
     private String status;
 
     public static OrderInfo from(OrderEntity orderEntity) {

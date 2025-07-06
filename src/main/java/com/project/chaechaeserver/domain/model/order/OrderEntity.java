@@ -32,13 +32,13 @@ public class OrderEntity {
   private Long productId;
 
   @Column(name = "quantity", nullable = false)
-  private int quantity;
+  private Integer quantity;
 
   @Column(name = "unit_cost", nullable = false)
-  private int unitCost;
+  private Integer unitCost;
 
   @Column(name = "total_cost", nullable = false)
-  private int totalCost;
+  private Integer totalCost;
 
   @Column(name = "status", nullable = false)
   @Enumerated(EnumType.STRING)
@@ -57,7 +57,7 @@ public class OrderEntity {
 
 
   @Builder
-  public OrderEntity(Long productId, int quantity, int unitCost, int totalCost, StatusType status) {
+  public OrderEntity(Long productId, Integer quantity, Integer unitCost, Integer totalCost, StatusType status) {
     this.productId = productId;
     this.quantity = quantity;
     this.unitCost = unitCost;
@@ -65,7 +65,7 @@ public class OrderEntity {
     this.status = status;
   }
 
-  public static OrderEntity createOrder(Long productId, int quantity, int unitCost,
+  public static OrderEntity createOrder(Long productId, Integer quantity, Integer unitCost,
       StatusType status) {
     return OrderEntity.builder()
         .productId(productId)

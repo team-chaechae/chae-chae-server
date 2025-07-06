@@ -25,7 +25,7 @@ public class ReqCreateOrderDTO {
   public static class Order {
 
     private Long productId;
-    private int quantity;
+    private Integer quantity;
 
   }
 }

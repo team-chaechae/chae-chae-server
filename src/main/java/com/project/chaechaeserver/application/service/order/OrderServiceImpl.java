@@ -23,7 +23,7 @@ public class OrderServiceImpl implements OrderService {
   @Transactional
   public ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO request) {
     Long productId = request.getOrder().getProductId();
-    int quantity = request.getOrder().getQuantity();
+    Integer quantity = request.getOrder().getQuantity();
 
     if (quantity <= 0) {
       throw new IllegalArgumentException("수량은 1개 이상이어야 합니다.");
@@ -31,7 +31,7 @@ public class OrderServiceImpl implements OrderService {
 
     orderDomainService.validateDuplicateOrder(productId);
 
-    int unitCost = productDomainService.getUnitPrice(productId);
+    Integer unitCost = productDomainService.getUnitPrice(productId);
     StatusType status = StatusType.REQUESTED;
 
     OrderEntity order = OrderEntity.createOrder(productId, quantity, unitCost, status);
