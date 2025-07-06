@@ -25,10 +25,6 @@ public class OrderServiceImpl implements OrderService {
     Long productId = request.getOrder().getProductId();
     Integer quantity = request.getOrder().getQuantity();
 
-    if (quantity <= 0) {
-      throw new IllegalArgumentException("수량은 1개 이상이어야 합니다.");
-    }
-
     orderDomainService.validateDuplicateOrder(productId);
 
     Integer unitCost = productDomainService.getUnitPrice(productId);
