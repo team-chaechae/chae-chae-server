@@ -40,6 +40,6 @@ public class InternalUserServiceImpl implements InternalUserService {
         // -- 회원 저장 -- //
         internalUserRepository.save(savingForInternalUserEntity);
 
-        return ResInternalUserPostSignupDTO.of(savingForInternalUserEntity);
+        return ResInternalUserPostSignupDTO.from(savingForInternalUserEntity);
     }
 }

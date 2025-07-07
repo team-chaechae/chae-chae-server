@@ -14,7 +14,7 @@ public class ResInternalUserPostSignupDTO {
 
     private InternalUser internalUser;
 
-    public static ResInternalUserPostSignupDTO of(InternalUserEntity internalUserEntity) {
+    public static ResInternalUserPostSignupDTO from(InternalUserEntity internalUserEntity) {
         return ResInternalUserPostSignupDTO.builder()
                 .internalUser(InternalUser.from(internalUserEntity))
                 .build();
