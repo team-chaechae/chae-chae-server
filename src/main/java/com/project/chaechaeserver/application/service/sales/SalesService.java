@@ -20,7 +20,7 @@ public class SalesService {
     @Transactional(readOnly = true)
     public ResSalesGetByIdDTO getSalesBySalesId(Long salesId) {
         return ResSalesGetByIdDTO.from(
-                salesRepository.getSalesBySalesId(salesId)
+                salesRepository.findSalesBySalesId(salesId)
         );
     }
 
