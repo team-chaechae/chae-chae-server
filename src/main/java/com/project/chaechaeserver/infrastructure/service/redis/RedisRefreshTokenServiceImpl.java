@@ -1,6 +1,6 @@
 package com.project.chaechaeserver.infrastructure.service.redis;
 
-import com.project.chaechaeserver.application.service.user.RedisRefreshTokenService;
+import com.project.chaechaeserver.application.service.redis.RedisRefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;

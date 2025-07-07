@@ -1,4 +1,4 @@
-package com.project.chaechaeserver.application.service.user;
+package com.project.chaechaeserver.application.service.redis;
 
 
 public interface RedisRefreshTokenService {

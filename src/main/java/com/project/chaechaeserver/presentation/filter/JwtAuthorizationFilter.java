@@ -1,6 +1,6 @@
 package com.project.chaechaeserver.presentation.filter;
 
-import com.project.chaechaeserver.application.service.user.RedisRefreshTokenService;
+import com.project.chaechaeserver.application.service.redis.RedisRefreshTokenService;
 import com.project.chaechaeserver.domain.model.user.constraint.RoleType;
 import com.project.chaechaeserver.infrastructure.security.CustomUserDetailsService;
 import com.project.chaechaeserver.infrastructure.util.JwtUtil;
