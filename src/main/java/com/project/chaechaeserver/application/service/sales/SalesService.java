@@ -19,7 +19,7 @@ public class SalesService {
 
     @Transactional(readOnly = true)
     public ResSalesGetByIdDTO getSalesBySalesId(Long salesId) {
-        return ResSalesGetByIdDTO.of(
+        return ResSalesGetByIdDTO.from(
                 salesRepository.getSalesBySalesId(salesId)
         );
     }
@@ -29,7 +29,7 @@ public class SalesService {
                                                     LocalDate startDate, LocalDate endDate, LocalDate exactDate,
                                                     List<String> sortList) {
 
-        return ResSalesSearchDTO.of(
+        return ResSalesSearchDTO.from(
                 salesRepository.findSalesByDeletedAtIsNullWithCondition(
                         pageable, deletedCond, productName, startDate, endDate, exactDate, sortList
                 )

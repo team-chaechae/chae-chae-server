@@ -16,7 +16,7 @@ public class ResSalesGetByIdDTO {
 
     private Sales sales;
 
-    public static ResSalesGetByIdDTO of(SalesEntity salesEntity) {
+    public static ResSalesGetByIdDTO from(SalesEntity salesEntity) {
         return ResSalesGetByIdDTO.builder()
                 .sales(Sales.from(salesEntity))
                 .build();
