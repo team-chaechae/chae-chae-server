@@ -12,11 +12,11 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ResCreateOrderPostDTO {
 
-  private OrderInfo orderInfo;
+  private Order order;
 
   public static ResCreateOrderPostDTO from(OrderEntity orderEntity) {
     return ResCreateOrderPostDTO.builder()
-        .orderInfo(OrderInfo.from(orderEntity))
+        .order(Order.from(orderEntity))
         .build();
   }
 
@@ -24,7 +24,7 @@ public class ResCreateOrderPostDTO {
   @AllArgsConstructor
   @NoArgsConstructor
   @Builder
-  public static class OrderInfo {
+  public static class Order {
 
     private Long orderId;
     private Long productId;
@@ -33,8 +33,8 @@ public class ResCreateOrderPostDTO {
     private Integer totalCost;
     private String status;
 
-    public static OrderInfo from(OrderEntity orderEntity) {
-      return OrderInfo.builder()
+    public static Order from(OrderEntity orderEntity) {
+      return Order.builder()
           .orderId(orderEntity.getId())
           .productId(orderEntity.getProductId())
           .quantity(orderEntity.getQuantity())
