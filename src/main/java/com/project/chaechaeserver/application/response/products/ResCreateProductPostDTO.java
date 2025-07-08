@@ -1,6 +1,7 @@
 package com.project.chaechaeserver.application.response.products;
 
 
+import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,9 +16,9 @@ public class ResCreateProductPostDTO {
 
     private ProductInfo productInfo;
 
-    public static ResCreateProductPostDTO of(Long id ,String name, String category, int price, String unit) {
+    public static ResCreateProductPostDTO from(ProductEntity productEntity) {
         return ResCreateProductPostDTO.builder()
-            .productInfo(ProductInfo.from(id,name, category, price, unit))
+            .productInfo(ProductInfo.from(productEntity))
             .build();
     }
 
@@ -34,13 +35,13 @@ public class ResCreateProductPostDTO {
         private String unit;
 
 
-        public static ProductInfo from(Long id, String name, String category, int price, String unit) {
+        public static ProductInfo from(ProductEntity productEntity) {
             return ProductInfo.builder()
-                .id(id)
-                .name(name)
-                .category(category)
-                .price(price)
-                .unit(unit)
+                .id(productEntity.getId())
+                .name(productEntity.getName())
+                .category(productEntity.getCategory())
+                .price(productEntity.getPrice())
+                .unit(productEntity.getUnit())
                 .build();
         }
     }
