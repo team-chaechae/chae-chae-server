@@ -13,11 +13,11 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ResCreateInventoryPostDTO {
 
-    private InventoryInfo inventoryInfo;
+    private Inventory inventory;
 
     public static ResCreateInventoryPostDTO from(InventoryEntity inventoryEntity) {
         return ResCreateInventoryPostDTO.builder()
-            .inventoryInfo(InventoryInfo.from(inventoryEntity))
+            .inventory(Inventory.from(inventoryEntity))
             .build();
     }
 
@@ -25,16 +25,16 @@ public class ResCreateInventoryPostDTO {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class InventoryInfo {
+    public static class Inventory {
         private Long inventoryId;
         private Long productId;
         private Integer quantity;
 
 
-        public static InventoryInfo from(InventoryEntity inventoryEntity) {
-            return InventoryInfo.builder()
+        public static Inventory from(InventoryEntity inventoryEntity) {
+            return Inventory.builder()
                 .inventoryId(inventoryEntity.getId())
-                .productId(inventoryEntity.getProducts().getId())
+                .productId(inventoryEntity.getProduct().getId())
                 .quantity(inventoryEntity.getQuantity())
                 .build();
         }
