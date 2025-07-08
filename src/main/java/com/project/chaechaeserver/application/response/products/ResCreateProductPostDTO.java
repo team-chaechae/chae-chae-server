@@ -14,11 +14,11 @@ import lombok.NoArgsConstructor;
 public class ResCreateProductPostDTO {
 
 
-    private ProductInfo productInfo;
+    private Product product;
 
     public static ResCreateProductPostDTO from(ProductEntity productEntity) {
         return ResCreateProductPostDTO.builder()
-            .productInfo(ProductInfo.from(productEntity))
+            .product(Product.from(productEntity))
             .build();
     }
 
@@ -26,17 +26,17 @@ public class ResCreateProductPostDTO {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ProductInfo {
+    public static class Product {
 
         private Long id;
         private String name;
         private String category;
-        private int price;
+        private Integer price;
         private String unit;
 
 
-        public static ProductInfo from(ProductEntity productEntity) {
-            return ProductInfo.builder()
+        public static Product from(ProductEntity productEntity) {
+            return Product.builder()
                 .id(productEntity.getId())
                 .name(productEntity.getName())
                 .category(productEntity.getCategory())
