@@ -22,7 +22,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class ProductsEntity {
+public class ProductEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,15 +54,15 @@ public class ProductsEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public ProductsEntity(String name, String category, int price, String unit) {
+    public ProductEntity(String name, String category, int price, String unit) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.unit = unit;
     }
 
-    public static ProductsEntity createProducts(String name, String category, int price, String unit ) {
-        return ProductsEntity.builder()
+    public static ProductEntity createProducts(String name, String category, int price, String unit ) {
+        return ProductEntity.builder()
             .name(name)
             .category(category)
             .price(price)
