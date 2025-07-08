@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Getter
 @NoArgsConstructor
@@ -25,9 +24,7 @@ public class ReqCreateProductsDTO {
 
         private String name;
         private String category;
-        private int price;
+        private Integer price;
         private String unit;
-
-
     }
 }
