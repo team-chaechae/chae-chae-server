@@ -14,9 +14,9 @@ public class ResCreateOrderPostDTO {
 
   private OrderInfo orderInfo;
 
-  public static ResCreateOrderPostDTO of(OrderInfo orderInfo) {
+  public static ResCreateOrderPostDTO from(OrderEntity orderEntity) {
     return ResCreateOrderPostDTO.builder()
-        .orderInfo(orderInfo)
+        .orderInfo(OrderInfo.from(orderEntity))
         .build();
   }
 

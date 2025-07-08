@@ -34,8 +34,6 @@ public class OrderServiceImpl implements OrderService {
 
     OrderEntity savedOrder = orderRepository.save(order);
 
-    return ResCreateOrderPostDTO.of(
-        ResCreateOrderPostDTO.OrderInfo.from(savedOrder)
-    );
+    return ResCreateOrderPostDTO.from(savedOrder);
   }
 }
