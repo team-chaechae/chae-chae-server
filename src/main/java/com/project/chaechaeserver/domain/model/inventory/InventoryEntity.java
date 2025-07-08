@@ -1,13 +1,13 @@
 package com.project.chaechaeserver.domain.model.inventory;
 
-import com.project.chaechaeserver.domain.model.products.ProductsEntity;
+import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -29,9 +29,9 @@ public class InventoryEntity {
     @Column(name = "inventory_id")
     private Long id;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "product_id")
-    private ProductsEntity products;
+    private ProductEntity product;
 
     @Column(name = "quantity" , nullable = false)
     private Integer quantity;
@@ -48,18 +48,9 @@ public class InventoryEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public InventoryEntity(ProductsEntity products, Integer quantity) {
-        this.products = products;
+    public InventoryEntity(ProductEntity product, Integer quantity) {
+        this.product = product;
         this.quantity = quantity;
     }
 
-    public static InventoryEntity createInventory(ProductsEntity products, Integer quantity) {
-        return InventoryEntity.builder()
-            .products(products)
-            .quantity(quantity)
-            .build();
-    }
-    public void updateInventory(ProductsEntity products, Integer quantity) {
-        this.products = products;
-    }
 }
