@@ -5,6 +5,6 @@ import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
 
 public interface OrderService {
 
-  ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO request);
+  ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO dto);
 
 }

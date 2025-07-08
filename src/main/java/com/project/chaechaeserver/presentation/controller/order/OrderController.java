@@ -25,14 +25,13 @@ public class OrderController {
 
   @PostMapping
   @Secured(ADMIN)
-  public ResponseEntity<ResDTO<ResCreateOrderPostDTO>> createOrder(
-      @Valid @RequestBody ReqCreateOrderDTO request) {
+  public ResponseEntity<ResDTO<ResCreateOrderPostDTO>> createOrder(@Valid @RequestBody ReqCreateOrderDTO dto) {
 
     return new ResponseEntity<>(
         ResDTO.<ResCreateOrderPostDTO>builder()
             .code(HttpStatus.CREATED.value())
             .message("발주 생성 완료")
-            .data(orderService.createOrderInfo(request))
+            .data(orderService.createOrderInfo(dto))
             .build(),
         HttpStatus.CREATED
     );

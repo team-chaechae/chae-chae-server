@@ -21,9 +21,9 @@ public class OrderServiceImpl implements OrderService {
 
   @Override
   @Transactional
-  public ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO request) {
-    Long productId = request.getOrder().getProductId();
-    Integer quantity = request.getOrder().getQuantity();
+  public ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO dto) {
+    Long productId = dto.getOrder().getProductId();
+    Integer quantity = dto.getOrder().getQuantity();
 
     orderDomainService.validateDuplicateOrder(productId);
 
