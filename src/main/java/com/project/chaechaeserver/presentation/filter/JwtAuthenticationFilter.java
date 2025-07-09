@@ -1,7 +1,7 @@
 package com.project.chaechaeserver.presentation.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.chaechaeserver.application.service.user.RedisRefreshTokenService;
+import com.project.chaechaeserver.application.service.redis.RedisRefreshTokenService;
 import com.project.chaechaeserver.domain.model.user.constraint.RoleType;
 import com.project.chaechaeserver.infrastructure.security.CustomUserDetails;
 import com.project.chaechaeserver.infrastructure.util.JwtUtil;
