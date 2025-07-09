@@ -1,6 +1,6 @@
 package com.project.chaechaeserver.domain.model.sales;
 
-import com.project.chaechaeserver.domain.model.products.ProductsEntity;
+import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -29,8 +29,8 @@ public class SalesEntity {
     private Integer price;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "products_id")
-    private ProductsEntity productsEntity;
+    @JoinColumn(name = "product_id")
+    private ProductEntity productEntity;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
@@ -44,8 +44,8 @@ public class SalesEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public SalesEntity (ProductsEntity productsEntity, Integer quantity, Integer price) {
-        this.productsEntity = productsEntity;
+    public SalesEntity (ProductEntity productEntity, Integer quantity, Integer price) {
+        this.productEntity = productEntity;
         this.quantity = quantity;
         this.price = price;
     }
