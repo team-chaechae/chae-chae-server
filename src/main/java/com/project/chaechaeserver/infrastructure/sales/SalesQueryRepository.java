@@ -34,7 +34,7 @@ public class SalesQueryRepository {
 
         List<SalesEntity> results = queryFactory
                 .selectFrom(salesEntity)
-                .join(salesEntity.productsEntity).fetchJoin()
+                .join(salesEntity.productEntity).fetchJoin()
                 .where(
                         isDeleted(deletedCond),
                         productNameLike(productName),
@@ -66,7 +66,7 @@ public class SalesQueryRepository {
     }
 
     private BooleanExpression productNameLike(String productName) {
-        return hasText(productName) ? salesEntity.productsEntity.name.containsIgnoreCase(productName) : null;
+        return hasText(productName) ? salesEntity.productEntity.name.containsIgnoreCase(productName) : null;
     }
 
     private BooleanExpression createdAtCondition(LocalDate startDate, LocalDate endDate, LocalDate exactDate) {
