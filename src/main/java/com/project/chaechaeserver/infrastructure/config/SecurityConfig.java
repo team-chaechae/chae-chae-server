@@ -1,6 +1,6 @@
 package com.project.chaechaeserver.infrastructure.config;
 
-import com.project.chaechaeserver.application.service.user.RedisRefreshTokenService;
+import com.project.chaechaeserver.application.service.redis.RedisRefreshTokenService;
 import com.project.chaechaeserver.infrastructure.security.CustomUserDetailsService;
 import com.project.chaechaeserver.infrastructure.util.JwtUtil;
 import com.project.chaechaeserver.presentation.filter.JwtAuthenticationFilter;
