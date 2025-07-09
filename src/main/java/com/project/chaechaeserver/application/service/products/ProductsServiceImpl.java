@@ -1,7 +1,8 @@
 package com.project.chaechaeserver.application.service.products;
 
 import com.project.chaechaeserver.application.response.products.ResCreateProductPostDTO;
-import com.project.chaechaeserver.domain.model.products.ProductsEntity;
+import com.project.chaechaeserver.application.response.products.ResGetProductDTO;
+import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import com.project.chaechaeserver.domain.repository.products.ProductsRepository;
 import com.project.chaechaeserver.domain.service.products.ProductDomainService;
 import com.project.chaechaeserver.presentation.request.products.ReqCreateProductsDTO;
@@ -19,26 +20,31 @@ public class ProductsServiceImpl implements ProductsService {
 
     @Override
     @Transactional
-    public ResCreateProductPostDTO createProductInfo(ReqCreateProductsDTO request) {
+    public ResCreateProductPostDTO createProductInfo(ReqCreateProductsDTO dto) {
 
-        productDomainService.validateProductName(request.getProduct().getName());
+        productDomainService.validateProductName(dto.getProduct().getName());
 
-        ProductsEntity savedProduct = productsRepository.save(
-            ProductsEntity.createProducts(
-                request.getProduct().getName(),
-                request.getProduct().getCategory(),
-                request.getProduct().getPrice(),
-                request.getProduct().getUnit(),
-                false
+        ProductEntity savedProduct = productsRepository.save(
+            ProductEntity.createProducts(
+                dto.getProduct().getName(),
+                dto.getProduct().getCategory(),
+                dto.getProduct().getPrice(),
+                dto.getProduct().getUnit()
             )
         );
 
-        return ResCreateProductPostDTO.of(
-            savedProduct.getId(),
-            savedProduct.getName(),
-            savedProduct.getCategory(),
-            savedProduct.getPrice(),
-            savedProduct.getUnit()
+        return ResCreateProductPostDTO.from(
+        savedProduct
         );
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ResGetProductDTO getProductInfo(Long productId) {
+        ProductEntity product = productsRepository.findById(productId)
+            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+
+        return ResGetProductDTO.from(product);
+    }
 }
+

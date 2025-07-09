@@ -67,8 +67,8 @@ public class ResSalesSearchDTO {
 
                 return Sales.builder()
                         .salesId(salesEntity.getId())
-                        .productId(salesEntity.getProductsEntity().getId())
-                        .productName(salesEntity.getProductsEntity().getName())
+                        .productId(salesEntity.getProductEntity().getId())
+                        .productName(salesEntity.getProductEntity().getName())
                         .quantity(quantity)
                         .price(price)
                         .totalPrice(price * quantity)
