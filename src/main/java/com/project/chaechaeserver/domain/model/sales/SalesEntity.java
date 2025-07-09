@@ -23,10 +23,10 @@ public class SalesEntity {
     private Long id;
 
     @Column(name = "quantity")
-    private int quantity;
+    private Integer quantity;
 
     @Column(name = "price")
-    private int price;
+    private Integer price;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "products_id")
@@ -44,7 +44,7 @@ public class SalesEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public SalesEntity (ProductsEntity productsEntity, int quantity, int price) {
+    public SalesEntity (ProductsEntity productsEntity, Integer quantity, Integer price) {
         this.productsEntity = productsEntity;
         this.quantity = quantity;
         this.price = price;

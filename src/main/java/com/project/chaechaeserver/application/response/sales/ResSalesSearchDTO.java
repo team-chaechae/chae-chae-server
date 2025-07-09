@@ -18,7 +18,7 @@ public class ResSalesSearchDTO {
 
     private SalesPage salesPage;
 
-    public static ResSalesSearchDTO of(Page<SalesEntity> salesEntityPage) {
+    public static ResSalesSearchDTO from(Page<SalesEntity> salesEntityPage) {
         return ResSalesSearchDTO.builder()
                 .salesPage(SalesPage.from(salesEntityPage))
                 .build();

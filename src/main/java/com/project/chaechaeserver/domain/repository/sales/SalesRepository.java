@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface SalesRepository {
 
-    SalesEntity getSalesBySalesId(Long salesId);
+    SalesEntity findSalesBySalesId(Long salesId);
     Page<SalesEntity> findSalesByDeletedAtIsNullWithCondition(Pageable pageable, Boolean deletedCond, String productName,
                                                                      LocalDate startDate, LocalDate endDate, LocalDate exactDate,
                                                                      List<String> sortList);
