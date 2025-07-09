@@ -20,6 +20,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductsRepository productsRepository;
 
     @Transactional
+    @Override
     public ResCreateInventoryPostDTO addInventory(ReqCreateInventoryDTO dto) {
 
         ProductEntity product = productsRepository.findById(dto.getInventory().getProductId())
