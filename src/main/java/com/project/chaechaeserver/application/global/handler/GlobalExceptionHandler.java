@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.application.global.handler;
 
+import com.project.chaechaeserver.application.global.constants.ResCode;
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.global.excepion.*;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -31,7 +32,7 @@ public class GlobalExceptionHandler {
                 .orElse("유효성 검사 실패");
 
         return ResponseEntity.badRequest().body(
-                new ResDTO<>(ErrorCode.BAD_REQUEST_EXCEPTION, errorMessage, null)
+                new ResDTO<>(ResCode.BAD_REQUEST_EXCEPTION, errorMessage, null)
         );
     }
 
@@ -42,7 +43,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResDTO<Object>> handleMethodArgumentTypeMismatchException(Exception e) {
         return ResponseEntity.badRequest().body(
                 ResDTO.builder()
-                        .code(ErrorCode.METHOD_ARGUMENT_TYPE_MISMATCH_EXCEPTION)
+                        .code(ResCode.METHOD_ARGUMENT_TYPE_MISMATCH_EXCEPTION)
                         .message("PathVariable 또는 QueryString 타입을 확인하세요.")
                         .build()
         );
@@ -56,7 +57,7 @@ public class GlobalExceptionHandler {
         if (e.getMessage().contains("Required request body is missing")) {
             return ResponseEntity.badRequest().body(
                     ResDTO.builder()
-                            .code(ErrorCode.HTTP_MESSAGE_NOT_READABLE_EXCEPTION)
+                            .code(ResCode.HTTP_MESSAGE_NOT_READABLE_EXCEPTION)
                             .message("RequestBody가 없습니다.")
                             .build()
             );
@@ -64,14 +65,14 @@ public class GlobalExceptionHandler {
         if (e.getMessage().contains("Enum class: ")) {
             return ResponseEntity.badRequest().body(
                     ResDTO.builder()
-                            .code(ErrorCode.HTTP_MESSAGE_NOT_READABLE_EXCEPTION)
+                            .code(ResCode.HTTP_MESSAGE_NOT_READABLE_EXCEPTION)
                             .message("Enum 타입 매개변수를 확인하세요.")
                             .build()
             );
         }
         return ResponseEntity.badRequest().body(
                 ResDTO.builder()
-                        .code(ErrorCode.HTTP_MESSAGE_NOT_READABLE_EXCEPTION)
+                        .code(ResCode.HTTP_MESSAGE_NOT_READABLE_EXCEPTION)
                         .message("RequestBody를 형식에 맞추어 주세요.")
                         .build()
         );
@@ -84,7 +85,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResDTO<Object>> handleBadRequestException(Exception e) {
         return ResponseEntity.badRequest().body(
                 ResDTO.builder()
-                        .code(ErrorCode.BAD_REQUEST_EXCEPTION)
+                        .code(ResCode.BAD_REQUEST_EXCEPTION)
                         .message(e.getMessage())
                         .build()
         );
@@ -101,7 +102,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResDTO<Object>> handleAuthorityException(Exception e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 ResDTO.builder()
-                        .code(ErrorCode.AUTHORITY_EXCEPTION)
+                        .code(ResCode.AUTHORITY_EXCEPTION)
                         .message("권한이 없습니다.")
                         .build()
         );
@@ -118,7 +119,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResDTO<Object>> handleEntityAlreadyExistException(Exception e) {
         return ResponseEntity.badRequest().body(
                 ResDTO.builder()
-                        .code(ErrorCode.ENTITY_ALREADY_EXIST_EXCEPTION)
+                        .code(ResCode.ENTITY_ALREADY_EXIST_EXCEPTION)
                         .message(e.getMessage())
                         .build()
         );
@@ -131,7 +132,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ResDTO<Object>> handleEntityNotFoundException(Exception e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 ResDTO.builder()
-                        .code(ErrorCode.NOT_FOUND_EXCEPTION)
+                        .code(ResCode.NOT_FOUND_EXCEPTION)
                         .message(e.getMessage())
                         .build()
         );
@@ -149,7 +150,7 @@ public class GlobalExceptionHandler {
         e.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ResDTO.builder()
-                        .code(ErrorCode.EXCEPTION)
+                        .code(ResCode.EXCEPTION)
                         .message(e.getMessage())
                         .build()
         );
