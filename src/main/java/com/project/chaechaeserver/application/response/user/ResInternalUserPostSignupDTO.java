@@ -36,6 +36,9 @@ public class ResInternalUserPostSignupDTO {
         @Schema(example = "홍길동")
         private String realName;
 
+        @Schema(example = "P-20250001")
+        private String employeeCode;
+
         @Schema(example = "POSITION_MANAGER")
         private String position;
 
@@ -44,6 +47,7 @@ public class ResInternalUserPostSignupDTO {
                     .id(internalUserEntity.getId())
                     .email(internalUserEntity.getEmail())
                     .realName(internalUserEntity.getRealName())
+                    .employeeCode(internalUserEntity.getEmployeeCode())
                     .position(internalUserEntity.getPosition().name())
                     .build();
         }

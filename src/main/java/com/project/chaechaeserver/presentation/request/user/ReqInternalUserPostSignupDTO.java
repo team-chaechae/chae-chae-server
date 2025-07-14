@@ -35,6 +35,14 @@ public class ReqInternalUserPostSignupDTO {
         @Schema(example = "홍길동")
         private String realName;
 
+        @NotBlank(message = "사원코드를 입력해주세요.")
+        @Pattern(
+                regexp = "^P-\\d{8}$",
+                message = "사원코드는 'P-20250001' 형식의 10자리 문자열이어야 합니다."
+        )
+        @Schema(example = "P-20250001")
+        private String employeeCode;
+
         @NotBlank(message = "직급을 입력해주세요.")
         @Schema(
                 example = "POSITION_STAFF",
