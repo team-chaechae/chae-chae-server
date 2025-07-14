@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.presentation.controller.sales;
 
+import com.project.chaechaeserver.application.global.constants.ResCode;
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.sales.ResSalesGetByIdDTO;
 import com.project.chaechaeserver.application.response.sales.ResSalesSearchDTO;
@@ -28,7 +29,7 @@ public class SalesController implements SalesControllerSwagger {
     public ResponseEntity<ResDTO<ResSalesGetByIdDTO>> getSalesBySalesId(@PathVariable Long salesId) {
         return new ResponseEntity<>(
                 ResDTO.<ResSalesGetByIdDTO>builder()
-                        .code(HttpStatus.OK.value())
+                        .code(ResCode.OK)
                         .message("판매기록 상세조회에 성공하였습니다")
                         .data(salesService.getSalesBySalesId(salesId))
                         .build(),
@@ -47,7 +48,7 @@ public class SalesController implements SalesControllerSwagger {
                                                                             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return new ResponseEntity<>(
                 ResDTO.<ResSalesSearchDTO>builder()
-                        .code(HttpStatus.OK.value())
+                        .code(ResCode.OK)
                         .message("판매 기록 검색에 성공하였습니다.")
                         .data(salesService.searchSalesByCondition(
                                 pageable, deleted, productName, startDate, endDate, exactDate, sort
