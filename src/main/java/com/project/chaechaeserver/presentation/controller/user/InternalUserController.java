@@ -1,9 +1,9 @@
 package com.project.chaechaeserver.presentation.controller.user;
 
 import com.project.chaechaeserver.application.global.dto.ResDTO;
-import com.project.chaechaeserver.application.service.user.InternalUserService;
-import com.project.chaechaeserver.application.service.user.InternalUserServiceImpl;
 import com.project.chaechaeserver.application.response.user.ResInternalUserPostSignupDTO;
+import com.project.chaechaeserver.application.service.user.InternalUserService;
+import com.project.chaechaeserver.infrastructure.user.docs.InternalUserControllerSwagger;
 import com.project.chaechaeserver.presentation.request.user.ReqInternalUserPostSignupDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import static com.project.chaechaeserver.domain.model.user.constraint.RoleType.R
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/users")
-public class InternalUserController {
+public class InternalUserController implements InternalUserControllerSwagger {
 
     private final InternalUserService internalUserService;
 
