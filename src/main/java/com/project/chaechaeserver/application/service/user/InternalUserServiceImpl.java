@@ -34,6 +34,7 @@ public class InternalUserServiceImpl implements InternalUserService {
                 dto.getInternalUser().getEmail(),
                 passwordEncoder.encode(dto.getInternalUser().getPassword()),
                 dto.getInternalUser().getRealName(),
+                dto.getInternalUser().getEmployeeCode(),
                 PositionType.from(dto.getInternalUser().getPosition()),
                 EMPLOYEE // --> default 로 EMPLOYEE 권한 설정
         );
