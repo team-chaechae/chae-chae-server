@@ -65,7 +65,7 @@ public class SecurityConfig {
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers("/").permitAll()
                         .requestMatchers("//api/users/login").permitAll()
-                        .requestMatchers("/api/users/signup").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-resources/**").permitAll()
                         .anyRequest().authenticated()
         );
 
