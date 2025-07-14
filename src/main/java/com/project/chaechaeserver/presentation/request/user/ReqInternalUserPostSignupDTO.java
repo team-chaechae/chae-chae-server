@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -20,18 +21,21 @@ public class ReqInternalUserPostSignupDTO {
     public static class InternalUser {
 
         @Email
+        @NotBlank(message = "이메일을 입력해주세요.")
         @Schema(example = "john.doe@example.com")
         private String email;
 
-        @NotBlank
-        @Schema(example = "securePassword123!")
+        @NotBlank(message = "비밀번호를 입력해주세요.")
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[$@$!%*#?&])[A-Za-z\\d$@$!%*#?&]{8,16}$",
+                message = "비밀번호는 8~16자리수여야 합니다. 영문 대소문자, 숫자, 특수문자를 1개 이상 포함해야 합니다.")
+        @Schema(example = "Password123!")
         private String password;
 
-        @NotBlank
+        @NotBlank(message = "이름을 입력해주세요.")
         @Schema(example = "홍길동")
         private String realName;
 
-        @NotBlank
+        @NotBlank(message = "직급을 입력해주세요.")
         @Schema(
                 example = "POSITION_STAFF",
                 allowableValues = {
@@ -40,9 +44,5 @@ public class ReqInternalUserPostSignupDTO {
                 }
         )
         private String position;
-
-        @NotBlank
-        @Schema(example = "EMPLOYEE")
-        private String role;
     }
 }

@@ -39,16 +39,12 @@ public class ResInternalUserPostSignupDTO {
         @Schema(example = "POSITION_MANAGER")
         private String position;
 
-        @Schema(example = "EMPLOYEE")
-        private String role;
-
         public static InternalUser from(InternalUserEntity internalUserEntity) {
             return InternalUser.builder()
                     .id(internalUserEntity.getId())
                     .email(internalUserEntity.getEmail())
                     .realName(internalUserEntity.getRealName())
                     .position(internalUserEntity.getPosition().name())
-                    .role(internalUserEntity.getRole().name())
                     .build();
         }
     }
