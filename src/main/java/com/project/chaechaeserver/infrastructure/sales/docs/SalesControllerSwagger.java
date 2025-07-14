@@ -29,7 +29,7 @@ public interface SalesControllerSwagger {
     @Operation(summary = "판매기록 상세조회", description = "판매기록을 상세조회하는 API 입니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "상세조회 성공", content = @Content(schema = @Schema(implementation = ResSalesGetByIdDTO.class))),
-            @ApiResponse(responseCode = "400", description = "상세조회 실패.", content = @Content(schema = @Schema(implementation = ResSalesGetByIdDTO.class)))
+            @ApiResponse(responseCode = "400", description = "상세조회 실패.", content = @Content(schema = @Schema(implementation = ResDTO.class)))
     })
     @GetMapping("/{salesId}")
     ResponseEntity<ResDTO<ResSalesGetByIdDTO>> getSalesBySalesId(@PathVariable Long salesId);
@@ -37,7 +37,7 @@ public interface SalesControllerSwagger {
     @Operation(summary = "판매기록 검색", description = "판매기록을 검색하는 API 입니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "검색 성공", content = @Content(schema = @Schema(implementation = ResSalesSearchDTO.class))),
-            @ApiResponse(responseCode = "400", description = "검색 실패.", content = @Content(schema = @Schema(implementation = ResSalesSearchDTO.class)))
+            @ApiResponse(responseCode = "400", description = "검색 실패.", content = @Content(schema = @Schema(implementation = ResDTO.class)))
     })
     @GetMapping
     ResponseEntity<ResDTO<ResSalesSearchDTO>> searchSalesByCondition(@RequestParam(required = false) Boolean deleted,
