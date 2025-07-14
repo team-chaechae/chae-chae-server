@@ -4,6 +4,7 @@ import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.sales.ResSalesGetByIdDTO;
 import com.project.chaechaeserver.application.response.sales.ResSalesSearchDTO;
 import com.project.chaechaeserver.application.service.sales.SalesService;
+import com.project.chaechaeserver.infrastructure.sales.docs.SalesControllerSwagger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -19,7 +20,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/sales")
-public class SalesController {
+public class SalesController implements SalesControllerSwagger {
 
     private final SalesService salesService;
 
@@ -43,7 +44,7 @@ public class SalesController {
                                                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
                                                                             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate exactDate,
                                                                             @RequestParam(required = false) List<String> sort,
-                                                                            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+                                                                            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return new ResponseEntity<>(
                 ResDTO.<ResSalesSearchDTO>builder()
                         .code(HttpStatus.OK.value())
