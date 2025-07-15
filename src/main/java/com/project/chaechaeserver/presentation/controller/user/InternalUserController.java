@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.presentation.controller.user;
 
+import com.project.chaechaeserver.application.global.constants.ResCode;
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.user.ResInternalUserPostSignupDTO;
 import com.project.chaechaeserver.application.service.user.InternalUserService;
@@ -30,7 +31,7 @@ public class InternalUserController implements InternalUserControllerSwagger {
 
         return new ResponseEntity<>(
                 ResDTO.<ResInternalUserPostSignupDTO>builder()
-                        .code(HttpStatus.CREATED.value())
+                        .code(ResCode.CREATED)
                         .message("회원가입에 성공하였습니다.")
                         .data(internalUserService.signup(dto))
                         .build(),
