@@ -49,11 +49,7 @@ public class ProductEntity {
 
     @Column(name = "price" ,nullable = false)
     private Integer price;
-
-    @Column(name = "unit", length = 10, nullable = false)
-    private String unit;
-
-
+    
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -70,17 +66,15 @@ public class ProductEntity {
         this.name = name;
         this.category = category;
         this.price = price;
-        this.unit = unit;
         this.quantity = initialQuantity;
         this.inventoryHistories = new ArrayList<>();
     }
 
-    public static ProductEntity createProducts(String name, String category, Integer price, String unit) {
+    public static ProductEntity createProducts(String name, String category, Integer price) {
         return ProductEntity.builder()
             .name(name)
             .category(category)
             .price(price)
-            .unit(unit)
             .initialQuantity(null)
             .build();
     }
