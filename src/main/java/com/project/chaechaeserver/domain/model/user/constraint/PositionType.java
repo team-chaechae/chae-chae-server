@@ -12,12 +12,7 @@ public enum PositionType {
     SENIOR_ASSISTANT_MANAGER(Position.SENIOR_ASSISTANT_MANAGER, "대리"),
     MANAGER(Position.MANAGER, "과장"),
     DEPUTY_GENERAL_MANAGER(Position.DEPUTY_GENERAL_MANAGER, "차장"),
-    GENERAL_MANAGER(Position.GENERAL_MANAGER, "부장"),
-    DIRECTOR(Position.DIRECTOR, "이사"),
-    EXECUTIVE_DIRECTOR(Position.EXECUTIVE_DIRECTOR, "상무"),
-    SENIOR_EXECUTIVE_DIRECTOR(Position.SENIOR_EXECUTIVE_DIRECTOR, "전무"),
-    VICE_PRESIDENT(Position.VICE_PRESIDENT, "부사장"),
-    PRESIDENT(Position.PRESIDENT, "사장");
+    GENERAL_MANAGER(Position.GENERAL_MANAGER, "부장");
 
     private final String position;
     private final String displayName;
@@ -29,10 +24,22 @@ public enum PositionType {
         public static final String MANAGER = "POSITION_MANAGER";
         public static final String DEPUTY_GENERAL_MANAGER = "POSITION_DEPUTY_GENERAL_MANAGER";
         public static final String GENERAL_MANAGER = "POSITION_GENERAL_MANAGER";
-        public static final String DIRECTOR = "POSITION_DIRECTOR";
-        public static final String EXECUTIVE_DIRECTOR = "POSITION_EXECUTIVE_DIRECTOR";
-        public static final String SENIOR_EXECUTIVE_DIRECTOR = "POSITION_SENIOR_EXECUTIVE_DIRECTOR";
-        public static final String VICE_PRESIDENT = "POSITION_VICE_PRESIDENT";
-        public static final String PRESIDENT = "POSITION_PRESIDENT";
+    }
+
+    public static PositionType from(String position) {
+
+        if (position == null || position.isBlank()) {
+            throw new IllegalArgumentException("직책 값이 비어 있습니다.");
+        }
+
+        return switch (position.toUpperCase()) {
+            case Position.STAFF -> PositionType.STAFF;
+            case Position.ASSISTANT_MANAGER -> PositionType.ASSISTANT_MANAGER;
+            case Position.SENIOR_ASSISTANT_MANAGER -> PositionType.SENIOR_ASSISTANT_MANAGER;
+            case Position.MANAGER -> PositionType.MANAGER;
+            case Position.DEPUTY_GENERAL_MANAGER -> PositionType.DEPUTY_GENERAL_MANAGER;
+            case Position.GENERAL_MANAGER -> PositionType.GENERAL_MANAGER;
+            default -> throw new IllegalArgumentException("지원하지 않는 직책입니다: " + position);
+        };
     }
 }

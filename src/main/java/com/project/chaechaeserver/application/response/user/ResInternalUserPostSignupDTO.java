@@ -36,19 +36,19 @@ public class ResInternalUserPostSignupDTO {
         @Schema(example = "홍길동")
         private String realName;
 
+        @Schema(example = "P-20250001")
+        private String employeeCode;
+
         @Schema(example = "POSITION_MANAGER")
         private String position;
-
-        @Schema(example = "EMPLOYEE")
-        private String role;
 
         public static InternalUser from(InternalUserEntity internalUserEntity) {
             return InternalUser.builder()
                     .id(internalUserEntity.getId())
                     .email(internalUserEntity.getEmail())
                     .realName(internalUserEntity.getRealName())
+                    .employeeCode(internalUserEntity.getEmployeeCode())
                     .position(internalUserEntity.getPosition().name())
-                    .role(internalUserEntity.getRole().name())
                     .build();
         }
     }
