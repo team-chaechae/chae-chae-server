@@ -38,6 +38,7 @@ public class ResCreateOrderPostDTO {
     public static Order from(OrderEntity orderEntity) {
       return Order.builder()
           .orderId(orderEntity.getId())
+          .productId(orderEntity.getProduct().getId())
           .productName(orderEntity.getProduct().getName())
           .productCategory(orderEntity.getProduct().getCategory())
           .quantity(orderEntity.getQuantity())
