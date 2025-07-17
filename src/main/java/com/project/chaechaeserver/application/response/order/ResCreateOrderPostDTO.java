@@ -28,6 +28,8 @@ public class ResCreateOrderPostDTO {
 
     private Long orderId;
     private Long productId;
+    private String productName;
+    private String productCategory;
     private Integer quantity;
     private Integer unitCost;
     private Integer totalCost;
@@ -36,7 +38,8 @@ public class ResCreateOrderPostDTO {
     public static Order from(OrderEntity orderEntity) {
       return Order.builder()
           .orderId(orderEntity.getId())
-          .productId(orderEntity.getProductId())
+          .productName(orderEntity.getProduct().getName())
+          .productCategory(orderEntity.getProduct().getCategory())
           .quantity(orderEntity.getQuantity())
           .unitCost(orderEntity.getUnitCost())
           .totalCost(orderEntity.getTotalCost())
