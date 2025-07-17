@@ -3,6 +3,7 @@ package com.project.chaechaeserver.application.service.order;
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.domain.model.order.OrderEntity;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
+import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import com.project.chaechaeserver.domain.repository.order.OrderRepository;
 import com.project.chaechaeserver.domain.service.order.OrderDomainService;
 import com.project.chaechaeserver.domain.service.products.ProductDomainService;
@@ -27,10 +28,11 @@ public class OrderServiceImpl implements OrderService {
 
     orderDomainService.validateDuplicateOrder(productId);
 
-    Integer unitCost = productDomainService.getUnitPrice(productId);
-    StatusType status = StatusType.REQUESTED;
+    StatusType status = StatusType.APPROVED;
 
-    OrderEntity order = OrderEntity.createOrder(productId, quantity, unitCost, status);
+    ProductEntity product = productDomainService.findProductById(productId);
+
+    OrderEntity order = OrderEntity.createOrder(product, quantity, status);
 
     OrderEntity savedOrder = orderRepository.save(order);
 
