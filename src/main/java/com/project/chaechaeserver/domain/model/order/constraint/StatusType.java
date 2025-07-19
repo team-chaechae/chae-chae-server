@@ -20,4 +20,6 @@ public enum StatusType {
     public static final String COMPLETED = "STATUS_COMPLETED";
     public static final String CANCELLED = "STATUS_CANCELLED";
   }
+
+  public static final StatusType DEFAULT = APPROVED;
 }
