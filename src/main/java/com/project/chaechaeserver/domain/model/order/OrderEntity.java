@@ -1,18 +1,17 @@
 package com.project.chaechaeserver.domain.model.order;
 
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
-import com.project.chaechaeserver.domain.model.products.ProductEntity;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -37,12 +36,14 @@ public class OrderEntity {
   @Column(name = "order_id")
   private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "product_id")
-  private ProductEntity product;
-
-  @Column(name = "unit_cost", nullable = false)
-  private Integer unitCost;
+  @Embedded
+  @AttributeOverrides({
+      @AttributeOverride(name = "productId", column = @Column(name = "product_id")),
+      @AttributeOverride(name = "productName", column = @Column(name = "product_name")),
+      @AttributeOverride(name = "productCategory", column = @Column(name = "product_category")),
+      @AttributeOverride(name = "productPrice", column = @Column(name = "product_price"))
+  })
+  private ProductInfo productInfo;
 
   @Column(name = "quantity", nullable = false)
   private Integer quantity;
@@ -59,7 +60,7 @@ public class OrderEntity {
   private LocalDateTime createdAt;
 
   @CreatedBy
-  @Column(name = "created_by",updatable = false)
+  @Column(name = "created_by", updatable = false)
   private String createdBy;
 
   @UpdateTimestamp
@@ -78,20 +79,17 @@ public class OrderEntity {
 
 
   @Builder
-  public OrderEntity(ProductEntity product, Integer unitCost, Integer quantity, Integer totalCost, StatusType status) {
-    this.product = product;
-    this.unitCost = unitCost;
+  public OrderEntity(ProductInfo productInfo, Integer quantity, Integer totalCost, StatusType status) {
+    this.productInfo = productInfo;
     this.quantity = quantity;
     this.totalCost = totalCost;
     this.status = status;
   }
 
-  public static OrderEntity createOrder(ProductEntity product, Integer quantity, StatusType status) {
-    int unitCost = product.getPrice();
-    int totalCost = unitCost * quantity;
+  public static OrderEntity createOrder(ProductInfo productInfo, Integer quantity, StatusType status) {
+    int totalCost = productInfo.getProductPrice() * quantity;
     return OrderEntity.builder()
-        .product(product)
-        .unitCost(unitCost)
+        .productInfo(productInfo)
         .quantity(quantity)
         .totalCost(totalCost)
         .status(status)

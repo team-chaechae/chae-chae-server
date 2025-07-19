@@ -33,7 +33,14 @@ public class OrderServiceImpl implements OrderService {
 
     ProductEntity product = productDomainService.findProductById(productId);
 
-    OrderEntity order = OrderEntity.createOrder(product, quantity, status);
+    ProductInfo productInfo = new ProductInfo(
+        product.getId(),
+        product.getName(),
+        product.getCategory(),
+        product.getPrice()
+    );
+
+    OrderEntity order = OrderEntity.createOrder(productInfo, quantity, status);
 
     OrderEntity savedOrder = orderRepository.save(order);
 

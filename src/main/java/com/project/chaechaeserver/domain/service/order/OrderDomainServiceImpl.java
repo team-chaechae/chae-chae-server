@@ -13,7 +13,7 @@ public class OrderDomainServiceImpl implements OrderDomainService {
 
   @Override
   public void validateDuplicateOrder(Long productId) {
-    if (orderRepository.existsByProductIdAndStatus(productId, StatusType.APPROVED)) {
+    if (orderRepository.existsByProductInfo_ProductIdAndStatus(productId, StatusType.APPROVED)) {
       throw new IllegalArgumentException("이미 발주 중인 상품입니다.");
     }
   }
