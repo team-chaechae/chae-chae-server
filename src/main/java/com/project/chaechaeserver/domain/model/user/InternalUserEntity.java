@@ -2,6 +2,7 @@ package com.project.chaechaeserver.domain.model.user;
 
 import com.project.chaechaeserver.domain.model.user.constraint.PositionType;
 import com.project.chaechaeserver.domain.model.user.constraint.RoleType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -32,6 +33,9 @@ public class InternalUserEntity {
     @Column(name = "real_name", nullable = false)
     private String realName;
 
+    @Column(name = "employee_code", nullable = false)
+    private String employeeCode;
+
     @Column(name = "position", nullable = false)
     @Enumerated(EnumType.STRING)
     private PositionType position;
@@ -52,20 +56,22 @@ public class InternalUserEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public InternalUserEntity (String email, String password, String realName, PositionType position, RoleType role) {
+    public InternalUserEntity (String email, String password, String realName, String employeeCode, PositionType position, RoleType role) {
         this.email = email;
         this.password = password;
         this.realName = realName;
+        this.employeeCode = employeeCode;
         this.position = position;
         this.role = role;
     }
 
     // -- 생성 메서드 -- //
-    public static InternalUserEntity createInternalUser(String email, String password, String realName, PositionType position, RoleType role) {
+    public static InternalUserEntity createInternalUser(String email, String password, String realName, String employeeCode, PositionType position, RoleType role) {
         return InternalUserEntity.builder()
                 .email(email)
                 .password(password)
                 .realName(realName)
+                .employeeCode(employeeCode)
                 .position(position)
                 .role(role)
                 .build();
