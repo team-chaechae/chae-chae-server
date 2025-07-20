@@ -1,7 +1,9 @@
 package com.project.chaechaeserver.domain.model.order.constraint;
 
+import java.util.Arrays;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.springframework.util.StringUtils;
 
 @Getter
 @AllArgsConstructor
@@ -22,4 +24,13 @@ public enum StatusType {
   }
 
   public static final StatusType DEFAULT = APPROVED;
+
+  public static StatusType from(String input) {
+    if (!StringUtils.hasText(input)) return null;
+
+    return Arrays.stream(values())
+        .filter(e -> e.status.equalsIgnoreCase(input) || e.name().equalsIgnoreCase(input))
+        .findFirst()
+        .orElse(null);
+  }
 }
