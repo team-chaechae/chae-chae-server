@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.infrastructure.sales;
 
+import com.project.chaechaeserver.application.global.excepion.EntityNotFoundException;
 import com.project.chaechaeserver.domain.model.sales.SalesEntity;
 import com.project.chaechaeserver.domain.repository.sales.SalesRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class SalesRepositoryImpl implements SalesRepository {
     @Override
     public SalesEntity findSalesBySalesId(Long salesId) {
         return jpaSalesRepository.findByIdAndDeletedAtIsNull(salesId)
-                .orElseThrow(() -> new IllegalArgumentException("유요하지 않은 판매 정보입니다."));
+                .orElseThrow(() -> new EntityNotFoundException("유요하지 않은 판매 정보입니다."));
     }
 
     @Override
