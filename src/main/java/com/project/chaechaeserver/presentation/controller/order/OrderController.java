@@ -54,6 +54,7 @@ public class OrderController {
       @RequestParam(required = false) String productName,
       @RequestParam(required = false) String productCategory,
       @RequestParam(required = false) String status,
+      @RequestParam(required = false) String createdBy,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
       @RequestParam(required = false) List<String> sort,
@@ -66,7 +67,7 @@ public class OrderController {
             .code(HttpStatus.OK.value())
             .message("발주 기록 검색 성공")
             .data(orderService.searchOrdersByFilter(
-                pageable, orderId, productName, productCategory, statusType, startDate, endDate, sort
+                pageable, orderId, productName, productCategory, statusType, createdBy , startDate, endDate, sort
             ))
             .build(),
         HttpStatus.OK
