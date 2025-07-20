@@ -56,8 +56,9 @@ public class ResOrdersSearchDTO {
       private Integer productPrice;
       private Integer quantity;
       private Integer totalCost;
-      private LocalDateTime updatedAt;
       private String createdBy;
+      private LocalDateTime createdAt;
+      private LocalDateTime updatedAt;
 
       public static List<Orders> from(List<OrderEntity> orderEntityList) {
         return orderEntityList.stream()
@@ -76,8 +77,9 @@ public class ResOrdersSearchDTO {
             .productPrice(productInfo.getProductPrice())
             .quantity(orderEntity.getQuantity())
             .totalCost(orderEntity.getTotalCost())
-            .updatedAt(orderEntity.getUpdatedAt())
             .createdBy(orderEntity.getCreatedBy())
+            .createdAt(orderEntity.getCreatedAt())
+            .updatedAt(orderEntity.getUpdatedAt())
             .build();
       }
 
