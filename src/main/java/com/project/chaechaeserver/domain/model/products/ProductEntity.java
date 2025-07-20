@@ -1,9 +1,12 @@
 package com.project.chaechaeserver.domain.model.products;
 
 import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
+import com.project.chaechaeserver.domain.model.products.constraint.ProductStatusType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -42,14 +45,21 @@ public class ProductEntity {
     private String category;
 
     @Column(name = "quantity")
-    private Integer quantity = 0;
+    private Integer quantity;
 
     @OneToMany(mappedBy = "product", cascade = {CascadeType.PERSIST}, fetch = FetchType.LAZY)
     private List<InventoryEntity> inventoryHistories = new ArrayList<>();
 
     @Column(name = "price" ,nullable = false)
     private Integer price;
-    
+
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private ProductStatusType productStatusType;
+
+    @Column(name = "orderStatus")
+    @Enumerated(EnumType.STRING)
+    private ProductStatusType.ProductOrderType orderStatusType;
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -62,11 +72,13 @@ public class ProductEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public ProductEntity(String name, String category, Integer price, String unit, Integer initialQuantity) {
+    public ProductEntity(String name, String category, Integer price,  Integer initialQuantity, ProductStatusType productStatusType, ProductStatusType.ProductOrderType orderStatusType) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.quantity = initialQuantity;
+        this.productStatusType = productStatusType;
+        this.orderStatusType = orderStatusType;
         this.inventoryHistories = new ArrayList<>();
     }
 
@@ -75,6 +87,8 @@ public class ProductEntity {
             .name(name)
             .category(category)
             .price(price)
+            .productStatusType(ProductStatusType.PENDING)
+            .orderStatusType(null)
             .initialQuantity(null)
             .build();
     }
