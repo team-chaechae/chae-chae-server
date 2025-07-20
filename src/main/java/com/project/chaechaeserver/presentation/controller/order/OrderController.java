@@ -52,6 +52,7 @@ public class OrderController {
   public ResponseEntity<ResDTO<ResOrdersSearchDTO>> searchOrdersByFilter(
       @RequestParam(required = false) Long orderId,
       @RequestParam(required = false) String productName,
+      @RequestParam(required = false) String productCategory,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -65,7 +66,7 @@ public class OrderController {
             .code(HttpStatus.OK.value())
             .message("발주 기록 검색 성공")
             .data(orderService.searchOrdersByFilter(
-                pageable, orderId, productName, statusType, startDate, endDate, sort
+                pageable, orderId, productName, productCategory, statusType, startDate, endDate, sort
             ))
             .build(),
         HttpStatus.OK

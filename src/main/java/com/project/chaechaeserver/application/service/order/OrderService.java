@@ -13,6 +13,6 @@ public interface OrderService {
   ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO dto);
 
   ResOrdersSearchDTO searchOrdersByFilter(Pageable pageable, Long orderId, String productName,
-      StatusType status, LocalDate startDate, LocalDate endDate, List<String> sort);
+      String productCategory , StatusType status , LocalDate startDate, LocalDate endDate, List<String> sort);
 
 }

@@ -9,7 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface OrderRepositoryCustom {
 
-  Page<OrderEntity> searchOrdersByFilter(Pageable pageable, Long orderId, String productName,
+  Page<OrderEntity> searchOrdersByFilter(Pageable pageable, Long orderId, String productName, String productCategory,
       StatusType status, LocalDate startDate, LocalDate endDate, List<String> sortList);
 
 }

@@ -54,11 +54,11 @@ public class OrderServiceImpl implements OrderService {
   @Override
   @Transactional(readOnly = true)
   public ResOrdersSearchDTO searchOrdersByFilter(Pageable pageable, Long orderId,
-      String productName, StatusType status, LocalDate startDate, LocalDate endDate,
+      String productName, String productCategory, StatusType status, LocalDate startDate, LocalDate endDate,
       List<String> sortList) {
     return ResOrdersSearchDTO.from(
         orderRepository.searchOrdersByFilter(
-            pageable, orderId, productName, status, startDate, endDate, sortList
+            pageable, orderId, productName, productCategory ,status, startDate, endDate, sortList
         )
     );
   }

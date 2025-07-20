@@ -25,7 +25,7 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
 
   @Override
   public Page<OrderEntity> searchOrdersByFilter(Pageable pageable, Long orderId, String productName,
-      StatusType status, LocalDate startDate, LocalDate endDate, List<String> sortList) {
+      String productCategory, StatusType status, LocalDate startDate, LocalDate endDate, List<String> sortList) {
 
     QOrderEntity order = QOrderEntity.orderEntity;
 
@@ -36,7 +36,11 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     }
 
     if (productName != null) {
-      builder.and(order.productInfo.productName.eq(productName));
+      builder.and(order.productInfo.productName.contains(productName));
+    }
+
+    if (productCategory != null) {
+        builder.and(order.productInfo.productCategory.eq(productCategory));
     }
 
     if (status != null) {
