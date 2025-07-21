@@ -2,6 +2,7 @@ package com.project.chaechaeserver.presentation.controller.order;
 
 import static com.project.chaechaeserver.domain.model.user.constraint.RoleType.Role.ADMIN;
 
+import com.project.chaechaeserver.application.global.constants.ResCode;
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
@@ -39,7 +40,7 @@ public class OrderController {
 
     return new ResponseEntity<>(
         ResDTO.<ResCreateOrderPostDTO>builder()
-            .code(HttpStatus.CREATED.value())
+            .code(ResCode.OK)
             .message("발주 생성 완료")
             .data(orderService.createOrderInfo(dto))
             .build(),
@@ -64,7 +65,7 @@ public class OrderController {
 
     return new ResponseEntity<>(
         ResDTO.<ResOrdersSearchDTO>builder()
-            .code(HttpStatus.OK.value())
+            .code(ResCode.OK)
             .message("발주 기록 검색 성공")
             .data(orderService.searchOrdersByFilter(
                 pageable, orderId, productName, productCategory, statusType, createdBy , startDate, endDate, sort
