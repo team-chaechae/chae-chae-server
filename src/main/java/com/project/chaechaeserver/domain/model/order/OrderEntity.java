@@ -1,8 +1,12 @@
 package com.project.chaechaeserver.domain.model.order;
 
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -16,10 +20,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "orders")
 public class OrderEntity {
 
@@ -28,14 +36,17 @@ public class OrderEntity {
   @Column(name = "order_id")
   private Long id;
 
-  @Column(name = "product_id", nullable = false)
-  private Long productId;
+  @Embedded
+  @AttributeOverrides({
+      @AttributeOverride(name = "productId", column = @Column(name = "product_id")),
+      @AttributeOverride(name = "productName", column = @Column(name = "product_name")),
+      @AttributeOverride(name = "productCategory", column = @Column(name = "product_category")),
+      @AttributeOverride(name = "productPrice", column = @Column(name = "product_price"))
+  })
+  private ProductInfo productInfo;
 
   @Column(name = "quantity", nullable = false)
   private Integer quantity;
-
-  @Column(name = "unit_cost", nullable = false)
-  private Integer unitCost;
 
   @Column(name = "total_cost", nullable = false)
   private Integer totalCost;
@@ -48,30 +59,39 @@ public class OrderEntity {
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
 
+  @CreatedBy
+  @Column(name = "created_by", updatable = false)
+  private String createdBy;
+
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
+  @LastModifiedBy
+  @Column(name = "updated_by", nullable = false)
+  private String updatedBy;
+
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
 
+  @Column(name = "deleted_by")
+  private String deletedBy;
+
 
   @Builder
-  public OrderEntity(Long productId, Integer quantity, Integer unitCost, Integer totalCost, StatusType status) {
-    this.productId = productId;
+  public OrderEntity(ProductInfo productInfo, Integer quantity, Integer totalCost, StatusType status) {
+    this.productInfo = productInfo;
     this.quantity = quantity;
-    this.unitCost = unitCost;
     this.totalCost = totalCost;
     this.status = status;
   }
 
-  public static OrderEntity createOrder(Long productId, Integer quantity, Integer unitCost,
-      StatusType status) {
+  public static OrderEntity createOrder(ProductInfo productInfo, Integer quantity, StatusType status) {
+    int totalCost = productInfo.getProductPrice() * quantity;
     return OrderEntity.builder()
-        .productId(productId)
+        .productInfo(productInfo)
         .quantity(quantity)
-        .unitCost(unitCost)
-        .totalCost(quantity * unitCost)
+        .totalCost(totalCost)
         .status(status)
         .build();
   }
