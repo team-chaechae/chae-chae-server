@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.domain.service.order;
 
+import com.project.chaechaeserver.application.global.excepion.EntityAlreadyExistException;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
 import com.project.chaechaeserver.domain.repository.order.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +14,8 @@ public class OrderDomainServiceImpl implements OrderDomainService {
 
   @Override
   public void validateDuplicateOrder(Long productId) {
-    if (orderRepository.existsByProductIdAndStatus(productId, StatusType.REQUESTED)) {
-      throw new IllegalArgumentException("이미 발주 요청 중인 상품입니다.");
+    if (orderRepository.existsByProductInfo_ProductIdAndStatus(productId, StatusType.APPROVED)) {
+      throw new EntityAlreadyExistException("이미 발주 중인 상품입니다.");
     }
   }
 

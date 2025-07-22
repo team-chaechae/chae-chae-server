@@ -1,6 +1,7 @@
 package com.project.chaechaeserver.application.response.sales;
 
 import com.project.chaechaeserver.domain.model.sales.SalesEntity;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -46,12 +47,24 @@ public class ResSalesSearchDTO {
         @AllArgsConstructor
         public static class Sales {
 
+            @Schema(example = "101")
             private Long salesId;
+
+            @Schema(example = "53")
             private Long productId;
+
+            @Schema(example = "유기농 사과 5kg")
             private String productName;
+
+            @Schema(example = "3")
             private int quantity;
+
+            @Schema(example = "15000")
             private int price;
+
+            @Schema(example = "45000")
             private int totalPrice;
+
             private LocalDateTime createdAt;
 
             public static List<Sales> from(List<SalesEntity> salesEntityList) {
@@ -83,9 +96,16 @@ public class ResSalesSearchDTO {
         @AllArgsConstructor
         public static class PageDetails {
 
+            @Schema(example = "10")
             private int size;
+
+            @Schema(example = "0")
             private int number;
+
+            @Schema(example = "25")
             private long totalElements;
+
+            @Schema(example = "3")
             private int totalPages;
 
             public static PageDetails from(Page<SalesEntity> salesEntityPage) {

@@ -23,3 +23,6 @@ spring:
 service:
   jwt:
     secret-key: ${JWT_SECRET_KEY}
+
+springdoc:
+  use-fqn: true
