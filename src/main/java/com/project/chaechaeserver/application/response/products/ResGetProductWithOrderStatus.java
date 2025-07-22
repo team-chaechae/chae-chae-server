@@ -1,37 +1,50 @@
 package com.project.chaechaeserver.application.response.products;
 
+
 import com.project.chaechaeserver.domain.model.products.ProductEntity;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
-@Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class ResGetProductDTO {
+public class ResGetProductWithOrderStatus {
 
     private Product product;
 
-    public static ResGetProductDTO from(ProductEntity productEntity) {
-        return ResGetProductDTO.builder()
+    @Builder
+    public ResGetProductWithOrderStatus(Product product) {
+        this.product = product;
+    }
+
+    public static ResGetProductWithOrderStatus from(ProductEntity productEntity) {
+        return ResGetProductWithOrderStatus.builder()
             .product(Product.from(productEntity))
             .build();
     }
 
     @Getter
-    @Builder
     @NoArgsConstructor
-    @AllArgsConstructor
     public static class Product {
 
         private Long id;
         private String name;
         private String category;
         private Integer price;
-        private String unit;
         private Integer currentQuantity;
+        private String status;
+        private String orderStatus;
+
+        @Builder
+        public Product(Long id, String name, String category, Integer price, Integer currentQuantity, String status, String orderStatus) {
+            this.id = id;
+            this.name = name;
+            this.category = category;
+            this.price = price;
+            this.currentQuantity = currentQuantity;
+            this.status = status;
+            this.orderStatus = orderStatus;
+        }
 
         public static Product from(ProductEntity productEntity) {
             return Product.builder()
@@ -39,9 +52,11 @@ public class ResGetProductDTO {
                 .name(productEntity.getName())
                 .category(productEntity.getCategory())
                 .price(productEntity.getPrice())
-                .unit(productEntity.getUnit())
                 .currentQuantity(productEntity.getQuantity())
+                .status(String.valueOf(productEntity.getProductStatusType()))
+                .orderStatus(String.valueOf(productEntity.getOrderStatusType()))
                 .build();
         }
     }
+
 }

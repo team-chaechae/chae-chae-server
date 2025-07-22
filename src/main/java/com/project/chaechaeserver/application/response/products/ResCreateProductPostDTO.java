@@ -1,7 +1,10 @@
 package com.project.chaechaeserver.application.response.products;
 
 
+
+
 import com.project.chaechaeserver.domain.model.products.ProductEntity;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,7 +35,10 @@ public class ResCreateProductPostDTO {
         private String name;
         private String category;
         private Integer price;
-        private String unit;
+        private String status;
+        private String orderStatus;
+        private LocalDateTime createAt;
+        private LocalDateTime updatedAt;
 
 
         public static Product from(ProductEntity productEntity) {
@@ -41,8 +47,12 @@ public class ResCreateProductPostDTO {
                 .name(productEntity.getName())
                 .category(productEntity.getCategory())
                 .price(productEntity.getPrice())
-                .unit(productEntity.getUnit())
+                .status("PENDING")
+                .orderStatus(null)
+                .createAt(productEntity.getCreatedAt())
+                .updatedAt(productEntity.getUpdatedAt())
                 .build();
         }
+
     }
 }
