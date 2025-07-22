@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.domain.service.products;
 
+import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import com.project.chaechaeserver.domain.repository.products.ProductsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,10 +18,8 @@ public class ProductDomainServiceImpl implements ProductDomainService {
         }
     }
 
-    // 발주용 상품 가격 확인
     @Override
-    public int getUnitPrice(Long productId) {
-        return productsRepository.findProductByProductId(productId).getPrice();
-
+    public ProductEntity findProductById(Long id) {
+        return productsRepository.findProductByProductId(id);
     }
 }
