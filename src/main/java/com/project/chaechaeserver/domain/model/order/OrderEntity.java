@@ -96,4 +96,8 @@ public class OrderEntity {
         .build();
   }
 
+  public void updateStatus(StatusType newStatus) {
+    this.status = newStatus;
+  }
+
 }
