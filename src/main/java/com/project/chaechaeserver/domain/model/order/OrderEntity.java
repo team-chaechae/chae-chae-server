@@ -31,73 +31,78 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Table(name = "orders")
 public class OrderEntity {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(name = "order_id")
-  private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_id")
+    private Long id;
 
-  @Embedded
-  @AttributeOverrides({
-      @AttributeOverride(name = "productId", column = @Column(name = "product_id")),
-      @AttributeOverride(name = "productName", column = @Column(name = "product_name")),
-      @AttributeOverride(name = "productCategory", column = @Column(name = "product_category")),
-      @AttributeOverride(name = "productPrice", column = @Column(name = "product_price"))
-  })
-  private ProductInfo productInfo;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "productId", column = @Column(name = "product_id")),
+            @AttributeOverride(name = "productName", column = @Column(name = "product_name")),
+            @AttributeOverride(name = "productCategory", column = @Column(name = "product_category")),
+            @AttributeOverride(name = "productPrice", column = @Column(name = "product_price"))
+    })
+    private ProductInfo productInfo;
 
-  @Column(name = "quantity", nullable = false)
-  private Integer quantity;
+    @Column(name = "quantity", nullable = false)
+    private Integer quantity;
 
-  @Column(name = "total_cost", nullable = false)
-  private Integer totalCost;
+    @Column(name = "total_cost", nullable = false)
+    private Integer totalCost;
 
-  @Column(name = "status", nullable = false)
-  @Enumerated(EnumType.STRING)
-  private StatusType status;
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private StatusType status;
 
-  @CreationTimestamp
-  @Column(name = "created_at", nullable = false)
-  private LocalDateTime createdAt;
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
-  @CreatedBy
-  @Column(name = "created_by", updatable = false)
-  private String createdBy;
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
+    private String createdBy;
 
-  @UpdateTimestamp
-  @Column(name = "updated_at", nullable = false)
-  private LocalDateTime updatedAt;
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
-  @LastModifiedBy
-  @Column(name = "updated_by", nullable = false)
-  private String updatedBy;
+    @LastModifiedBy
+    @Column(name = "updated_by", nullable = false)
+    private String updatedBy;
 
-  @Column(name = "deleted_at")
-  private LocalDateTime deletedAt;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
-  @Column(name = "deleted_by")
-  private String deletedBy;
+    @Column(name = "deleted_by")
+    private String deletedBy;
 
 
-  @Builder
-  public OrderEntity(ProductInfo productInfo, Integer quantity, Integer totalCost, StatusType status) {
-    this.productInfo = productInfo;
-    this.quantity = quantity;
-    this.totalCost = totalCost;
-    this.status = status;
-  }
+    @Builder
+    public OrderEntity(ProductInfo productInfo, Integer quantity, Integer totalCost, StatusType status) {
+        this.productInfo = productInfo;
+        this.quantity = quantity;
+        this.totalCost = totalCost;
+        this.status = status;
+    }
 
-  public static OrderEntity createOrder(ProductInfo productInfo, Integer quantity, StatusType status) {
-    int totalCost = productInfo.getProductPrice() * quantity;
-    return OrderEntity.builder()
-        .productInfo(productInfo)
-        .quantity(quantity)
-        .totalCost(totalCost)
-        .status(status)
-        .build();
-  }
+    public static OrderEntity createOrder(ProductInfo productInfo, Integer quantity, StatusType status) {
+        int totalCost = productInfo.getProductPrice() * quantity;
+        return OrderEntity.builder()
+                .productInfo(productInfo)
+                .quantity(quantity)
+                .totalCost(totalCost)
+                .status(status)
+                .build();
+    }
 
-  public void updateStatus(StatusType newStatus) {
-    this.status = newStatus;
-  }
+    public void updateStatus(StatusType newStatus) {
+        this.status = newStatus;
+    }
+
+    public void updateQuantity(int newQuantity) {
+        this.quantity = newQuantity;
+        this.totalCost = newQuantity * this.productInfo.getProductPrice();
+    }
 
 }
