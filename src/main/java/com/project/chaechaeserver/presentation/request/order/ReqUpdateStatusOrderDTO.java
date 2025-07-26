@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ReqUpdateOrderDTO {
+public class ReqUpdateStatusOrderDTO {
 
     @Valid
-    @NotNull(message = "변경된 발주 상태를 입력해주세요.")
+    @NotNull(message = "변경할 발주 상태를 입력해주세요.")
     private StatusType status;
 }
