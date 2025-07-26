@@ -10,7 +10,8 @@ import com.project.chaechaeserver.application.response.order.ResUpdateOrderDTO;
 import com.project.chaechaeserver.application.service.order.OrderService;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
 import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
-import com.project.chaechaeserver.presentation.request.order.ReqUpdateOrderDTO;
+import com.project.chaechaeserver.presentation.request.order.ReqUpdateQuantityOrderDTO;
+import com.project.chaechaeserver.presentation.request.order.ReqUpdateStatusOrderDTO;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -80,15 +81,28 @@ public class OrderController {
         );
     }
 
-    @PatchMapping("/{orderId}")
+    @PatchMapping("/{orderId}/status")
     @Secured(ADMIN)
-    public ResponseEntity<ResDTO<ResUpdateOrderDTO>> updateOrder(@Valid @RequestBody ReqUpdateOrderDTO dto,
+    public ResponseEntity<ResDTO<ResUpdateOrderDTO>> updateStatusOrder(@Valid @RequestBody ReqUpdateStatusOrderDTO dto,
                                                                  @PathVariable Long orderId) {
         return new ResponseEntity<>(
                 ResDTO.<ResUpdateOrderDTO>builder()
                         .code(ResCode.OK)
                         .message("발주 상태 수정 성공")
-                        .data(orderService.updateOrderStatus(dto, orderId))
+                        .data(orderService.updateStatusOrder(dto, orderId))
+                        .build(),
+                HttpStatus.OK
+        );
+    }
+
+    @PatchMapping("/{orderId}")
+    public ResponseEntity<ResDTO<ResUpdateOrderDTO>> updateQuantityOrder(@Valid @RequestBody ReqUpdateQuantityOrderDTO dto,
+                                                                         @PathVariable Long orderId) {
+        return new ResponseEntity<>(
+                ResDTO.<ResUpdateOrderDTO>builder()
+                        .code(ResCode.OK)
+                        .message("발주 수량 수정 성공")
+                        .data(orderService.updateQuantityOrder(dto, orderId))
                         .build(),
                 HttpStatus.OK
         );
