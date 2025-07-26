@@ -9,5 +9,7 @@ public interface OrderDomainService {
 
     OrderEntity findById(Long orderId);
 
-    void validateAlreadyCompleted(OrderEntity order, StatusType status);
+    void validateStatusChange(OrderEntity order, StatusType status);
+
+    void validateQuantityUpdate(OrderEntity order);
 }

@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.domain.service.order;
 
+import com.project.chaechaeserver.application.global.excepion.BadRequestException;
 import com.project.chaechaeserver.application.global.excepion.EntityAlreadyExistException;
 import com.project.chaechaeserver.application.global.excepion.EntityNotFoundException;
 import com.project.chaechaeserver.domain.model.order.OrderEntity;
@@ -28,10 +29,26 @@ public class OrderDomainServiceImpl implements OrderDomainService {
     }
 
     @Override
-    public void validateAlreadyCompleted(OrderEntity order, StatusType targetStatus) {
-        if (order.getStatus() == StatusType.COMPLETED && targetStatus == StatusType.COMPLETED) {
-            throw new EntityAlreadyExistException("이미 발주 완료된 상품입니다.");
+    public void validateStatusChange(OrderEntity order, StatusType targetStatus) {
+        StatusType currentStatus = order.getStatus();
+
+        if (currentStatus != StatusType.APPROVED) {
+            throw new BadRequestException("승인 상태에서만 상태를 변경할 수 있습니다.");
+        }
+
+        if (!currentStatus.canTransitionTo(targetStatus)) {
+            throw new BadRequestException(String.format(
+                    "상태 '%s'(은)는 '%s'(으)로 변경할 수 없습니다.",
+                    currentStatus.getDisplayName(),
+                    targetStatus.getDisplayName()
+            ));
         }
     }
 
+    @Override
+    public void validateQuantityUpdate(OrderEntity order) {
+        if (order.getStatus() != StatusType.APPROVED) {
+            throw new BadRequestException("승인 상태에서만 수량을 변경할 수 있습니다.");
+        }
+    }
 }
