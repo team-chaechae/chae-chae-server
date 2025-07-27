@@ -9,6 +9,7 @@ import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
 import com.project.chaechaeserver.application.response.order.ResUpdateOrderDTO;
 import com.project.chaechaeserver.application.service.order.OrderService;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
+import com.project.chaechaeserver.infrastructure.orders.docs.OrdersControllerSwagger;
 import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
 import com.project.chaechaeserver.presentation.request.order.ReqUpdateQuantityOrderDTO;
 import com.project.chaechaeserver.presentation.request.order.ReqUpdateStatusOrderDTO;
@@ -35,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/orders")
-public class OrderController {
+public class OrderController implements OrdersControllerSwagger {
 
     private final OrderService orderService;
 
@@ -45,7 +46,7 @@ public class OrderController {
 
         return new ResponseEntity<>(
                 ResDTO.<ResCreateOrderPostDTO>builder()
-                        .code(ResCode.OK)
+                        .code(ResCode.CREATED)
                         .message("발주 생성 완료")
                         .data(orderService.createOrderInfo(dto))
                         .build(),
