@@ -6,7 +6,8 @@ import com.project.chaechaeserver.application.global.constants.ResCode;
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
-import com.project.chaechaeserver.application.response.order.ResUpdateOrderDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderQuantityDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderStatusDTO;
 import com.project.chaechaeserver.application.service.order.OrderService;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
 import com.project.chaechaeserver.infrastructure.orders.docs.OrdersControllerSwagger;
@@ -84,10 +85,9 @@ public class OrderController implements OrdersControllerSwagger {
 
     @PatchMapping("/{orderId}/status")
     @Secured(ADMIN)
-    public ResponseEntity<ResDTO<ResUpdateOrderDTO>> updateStatusOrder(@Valid @RequestBody ReqUpdateStatusOrderDTO dto,
-                                                                 @PathVariable Long orderId) {
+    public ResponseEntity<ResDTO<ResUpdateOrderStatusDTO>> updateStatusOrder(@Valid @RequestBody ReqUpdateStatusOrderDTO dto, @PathVariable Long orderId) {
         return new ResponseEntity<>(
-                ResDTO.<ResUpdateOrderDTO>builder()
+                ResDTO.<ResUpdateOrderStatusDTO>builder()
                         .code(ResCode.OK)
                         .message("발주 상태 수정 성공")
                         .data(orderService.updateStatusOrder(dto, orderId))
@@ -97,10 +97,9 @@ public class OrderController implements OrdersControllerSwagger {
     }
 
     @PatchMapping("/{orderId}")
-    public ResponseEntity<ResDTO<ResUpdateOrderDTO>> updateQuantityOrder(@Valid @RequestBody ReqUpdateQuantityOrderDTO dto,
-                                                                         @PathVariable Long orderId) {
+    public ResponseEntity<ResDTO<ResUpdateOrderQuantityDTO>> updateQuantityOrder(@Valid @RequestBody ReqUpdateQuantityOrderDTO dto, @PathVariable Long orderId) {
         return new ResponseEntity<>(
-                ResDTO.<ResUpdateOrderDTO>builder()
+                ResDTO.<ResUpdateOrderQuantityDTO>builder()
                         .code(ResCode.OK)
                         .message("발주 수량 수정 성공")
                         .data(orderService.updateQuantityOrder(dto, orderId))

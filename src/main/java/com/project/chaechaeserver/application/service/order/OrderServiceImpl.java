@@ -2,7 +2,8 @@ package com.project.chaechaeserver.application.service.order;
 
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
-import com.project.chaechaeserver.application.response.order.ResUpdateOrderDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderQuantityDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderStatusDTO;
 import com.project.chaechaeserver.domain.model.order.OrderEntity;
 import com.project.chaechaeserver.domain.model.order.ProductInfo;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
@@ -70,13 +71,13 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public ResUpdateOrderDTO updateStatusOrder(ReqUpdateStatusOrderDTO dto, Long orderId) {
+    public ResUpdateOrderStatusDTO updateStatusOrder(ReqUpdateStatusOrderDTO dto, Long orderId) {
 
         OrderEntity order = orderDomainService.findById(orderId);
         StatusType status = dto.getStatus();
 
         if (order.getStatus() == dto.getStatus()) {
-            return ResUpdateOrderDTO.from(order);
+            return ResUpdateOrderStatusDTO.from(order);
         }
 
         orderDomainService.validateStatusChange(order, status);
@@ -89,22 +90,22 @@ public class OrderServiceImpl implements OrderService {
             product.addInventory(quantity);
         }
 
-        return ResUpdateOrderDTO.from(order);
+        return ResUpdateOrderStatusDTO.from(order);
     }
 
     @Override
     @Transactional
-    public ResUpdateOrderDTO updateQuantityOrder(ReqUpdateQuantityOrderDTO dto, Long orderId) {
+    public ResUpdateOrderQuantityDTO updateQuantityOrder(ReqUpdateQuantityOrderDTO dto, Long orderId) {
         OrderEntity order = orderDomainService.findById(orderId);
         orderDomainService.validateQuantityUpdate(order);
 
         if (Objects.equals(order.getQuantity(), dto.getQuantity())) {
-            return ResUpdateOrderDTO.from(order);
+            return ResUpdateOrderQuantityDTO.from(order);
         }
 
         order.updateQuantity(dto.getQuantity());
 
-        return ResUpdateOrderDTO.from(order);
+        return ResUpdateOrderQuantityDTO.from(order);
     }
 
 }

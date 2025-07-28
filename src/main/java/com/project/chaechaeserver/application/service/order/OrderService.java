@@ -2,7 +2,8 @@ package com.project.chaechaeserver.application.service.order;
 
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
-import com.project.chaechaeserver.application.response.order.ResUpdateOrderDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderQuantityDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderStatusDTO;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
 import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
 import com.project.chaechaeserver.presentation.request.order.ReqUpdateQuantityOrderDTO;
@@ -19,7 +20,7 @@ public interface OrderService {
                                             String productCategory, StatusType status, String createdBy,
                                             LocalDate startDate, LocalDate endDate, List<String> sort);
 
-    ResUpdateOrderDTO updateStatusOrder(ReqUpdateStatusOrderDTO dto, Long orderId);
+    ResUpdateOrderStatusDTO updateStatusOrder(ReqUpdateStatusOrderDTO dto, Long orderId);
 
-    ResUpdateOrderDTO updateQuantityOrder(ReqUpdateQuantityOrderDTO dto, Long orderId);
+    ResUpdateOrderQuantityDTO updateQuantityOrder(ReqUpdateQuantityOrderDTO dto, Long orderId);
 }
