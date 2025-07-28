@@ -3,7 +3,9 @@ package com.project.chaechaeserver.infrastructure.orders.docs;
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderDTO;
 import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
+import com.project.chaechaeserver.presentation.request.order.ReqUpdateStatusOrderDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,6 +21,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -51,4 +55,13 @@ public interface OrdersControllerSwagger {
                                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
                                                                     @RequestParam(required = false) List<String> sort,
                                                                     @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable);
+
+    @Operation(summary = "발주 상태 수정", description = "발주 상태를 수정하는 API입니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "상태 수정 성공", content = @Content(schema = @Schema(implementation = ResUpdateOrderDTO.class))),
+            @ApiResponse(responseCode = "400", description = "상태 수정 실패.", content = @Content(schema = @Schema(implementation = ResDTO.class)))
+    })
+    @PatchMapping("/{orderId}/status")
+    ResponseEntity<ResDTO<ResUpdateOrderDTO>> updateStatusOrder(@Valid @RequestBody ReqUpdateStatusOrderDTO dto,
+                                                                @PathVariable Long orderId);
 }
