@@ -5,7 +5,6 @@ import com.project.chaechaeserver.domain.model.products.constraint.ProductStatus
 import com.project.chaechaeserver.domain.repository.inventory.InventoryRepository;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
