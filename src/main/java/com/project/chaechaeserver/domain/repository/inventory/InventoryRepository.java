@@ -1,9 +1,30 @@
 package com.project.chaechaeserver.domain.repository.inventory;
 
 import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import com.project.chaechaeserver.domain.model.products.constraint.ProductStatusType;
+import java.time.LocalDate;
+import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-@Repository
-public interface InventoryRepository extends JpaRepository<InventoryEntity, Long> {
+
+public interface InventoryRepository {
+
+    InventoryEntity save(InventoryEntity inventoryEntity);
+
+    List<InventoryEntity> saveAll(List<InventoryEntity> inventoryEntities);
+
+    InventoryEntity findInventoryByInventoryId(Long id);
+
+    Page<InventoryEntity> findInventoryByDeletedAtIsNullWithCondition(
+        Pageable pageable,
+        String productName,
+        Boolean deletedAt,
+        ProductStatusType productStatus,
+        Long productId,
+        LocalDate startDate,
+        LocalDate endDate,
+        LocalDate exactDate,
+        List<String> sortList);
+
 }
