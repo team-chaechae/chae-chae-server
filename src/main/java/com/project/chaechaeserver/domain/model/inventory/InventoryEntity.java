@@ -60,7 +60,5 @@ public class InventoryEntity {
             .quantity(quantity)
             .build();
     }
-    public void updateInventory(ProductEntity product, Integer quantity) {
-        this.product = product;
-    }
+
 }
