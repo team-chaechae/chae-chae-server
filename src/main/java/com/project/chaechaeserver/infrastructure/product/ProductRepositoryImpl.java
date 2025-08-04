@@ -1,5 +1,6 @@
 package com.project.chaechaeserver.infrastructure.product;
 
+import com.project.chaechaeserver.application.global.excepion.EntityNotFoundException;
 import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import com.project.chaechaeserver.domain.model.products.constraint.ProductStatusType;
 import com.project.chaechaeserver.domain.repository.products.ProductsRepository;
@@ -28,15 +29,20 @@ public class ProductRepositoryImpl implements ProductsRepository {
     }
 
     @Override
+    public List<ProductEntity> findAllByIdInForWrite(List<Long> ids) {
+        return jpaProductRepository.findAllByIdInForWrite(ids);
+    }
+
+    @Override
     public ProductEntity findByIdForUpdate(Long id) {
-        return jpaProductRepository.findByIdForUpdate(id).orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다"));
+        return jpaProductRepository.findByIdForUpdate(id).orElseThrow(() -> new EntityNotFoundException("유효하지 않은 상품 정보입니다."));
     }
 
 
     @Override
     public ProductEntity findProductByProductId(Long id) {
         return jpaProductRepository.findByIdAndDeletedAtIsNull(id)
-            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다"));
+            .orElseThrow(() -> new EntityNotFoundException("유효하지 않은 상품 정보입니다."));
     }
     @Override
     public Page<ProductEntity> findProductByDeletedAtIsNullWithCondition(Pageable pageable,
