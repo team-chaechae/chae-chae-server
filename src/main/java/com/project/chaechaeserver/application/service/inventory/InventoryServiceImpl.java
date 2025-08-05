@@ -23,11 +23,8 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     public ResCreateInventoryPostDTO addInventory(ReqCreateInventoryDTO dto) {
 
-        ProductEntity product = productsRepository.findById(dto.getInventory().getProductId())
-            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
-
+        ProductEntity product = productsRepository.findByIdForUpdate(dto.getInventory().getProductId());
         InventoryEntity savedInventory = product.addInventory(dto.getInventory().getQuantity());
-
         return ResCreateInventoryPostDTO.from(savedInventory);
     }
 
@@ -35,8 +32,7 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     public ResUpdateInventoryPostDTO decreaseInventory(ReqCreateInventoryDTO dto) {
 
-        ProductEntity product = productsRepository.findById(dto.getInventory().getProductId())
-            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+        ProductEntity product = productsRepository.findByIdForUpdate(dto.getInventory().getProductId());
 
         InventoryEntity savedInventory = product.decreaseInventory(dto.getInventory().getQuantity());
 

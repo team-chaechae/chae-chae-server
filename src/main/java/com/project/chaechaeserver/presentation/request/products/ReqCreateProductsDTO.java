@@ -12,9 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ReqCreateProductsDTO {
 
-
     private Product product;
-
 
     @Getter
     @NoArgsConstructor
@@ -25,6 +23,5 @@ public class ReqCreateProductsDTO {
         private String name;
         private String category;
         private Integer price;
-        private String unit;
     }
 }
