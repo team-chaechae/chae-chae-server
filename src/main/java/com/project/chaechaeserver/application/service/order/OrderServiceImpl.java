@@ -2,6 +2,8 @@ package com.project.chaechaeserver.application.service.order;
 
 import com.project.chaechaeserver.application.response.order.ResCreateOrderPostDTO;
 import com.project.chaechaeserver.application.response.order.ResOrdersSearchDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderQuantityDTO;
+import com.project.chaechaeserver.application.response.order.ResUpdateOrderStatusDTO;
 import com.project.chaechaeserver.domain.model.order.OrderEntity;
 import com.project.chaechaeserver.domain.model.order.ProductInfo;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
@@ -10,8 +12,11 @@ import com.project.chaechaeserver.domain.repository.order.OrderRepository;
 import com.project.chaechaeserver.domain.service.order.OrderDomainService;
 import com.project.chaechaeserver.domain.service.products.ProductDomainService;
 import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
+import com.project.chaechaeserver.presentation.request.order.ReqUpdateQuantityOrderDTO;
+import com.project.chaechaeserver.presentation.request.order.ReqUpdateStatusOrderDTO;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,46 +26,86 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-  private final OrderRepository orderRepository;
-  private final OrderDomainService orderDomainService;
-  private final ProductDomainService productDomainService;
+    private final OrderRepository orderRepository;
+    private final OrderDomainService orderDomainService;
+    private final ProductDomainService productDomainService;
 
-  @Override
-  @Transactional
-  public ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO dto) {
-    Long productId = dto.getOrder().getProductId();
-    Integer quantity = dto.getOrder().getQuantity();
+    @Override
+    @Transactional
+    public ResCreateOrderPostDTO createOrderInfo(ReqCreateOrderDTO dto) {
+        Long productId = dto.getOrder().getProductId();
+        Integer quantity = dto.getOrder().getQuantity();
 
-    orderDomainService.validateDuplicateOrder(productId);
+        orderDomainService.validateDuplicateOrder(productId);
 
-    StatusType status = StatusType.DEFAULT;
+        StatusType status = StatusType.DEFAULT;
 
-    ProductEntity product = productDomainService.findProductById(productId);
+        ProductEntity product = productDomainService.findProductById(productId);
 
-    ProductInfo productInfo = new ProductInfo(
-        product.getId(),
-        product.getName(),
-        product.getCategory(),
-        product.getPrice()
-    );
+        ProductInfo productInfo = new ProductInfo(
+                product.getId(),
+                product.getName(),
+                product.getCategory(),
+                product.getPrice()
+        );
 
-    OrderEntity order = OrderEntity.createOrder(productInfo, quantity, status);
+        OrderEntity order = OrderEntity.createOrder(productInfo, quantity, status);
 
-    OrderEntity savedOrder = orderRepository.save(order);
+        OrderEntity savedOrder = orderRepository.save(order);
 
-    return ResCreateOrderPostDTO.from(savedOrder);
-  }
+        return ResCreateOrderPostDTO.from(savedOrder);
+    }
 
-  @Override
-  @Transactional(readOnly = true)
-  public ResOrdersSearchDTO searchOrdersByFilter(Pageable pageable, Long orderId,
-      String productName, String productCategory, StatusType status, String createdBy , LocalDate startDate, LocalDate endDate,
-      List<String> sortList) {
-    return ResOrdersSearchDTO.from(
-        orderRepository.searchOrdersByFilter(
-            pageable, orderId, productName, productCategory ,status, createdBy , startDate, endDate, sortList
-        )
-    );
-  }
+    @Override
+    @Transactional(readOnly = true)
+    public ResOrdersSearchDTO searchOrdersByFilter(Pageable pageable, Long orderId,
+                                                   String productName, String productCategory, StatusType status,
+                                                   String createdBy, LocalDate startDate, LocalDate endDate,
+                                                   List<String> sortList) {
+        return ResOrdersSearchDTO.from(
+                orderRepository.searchOrdersByFilter(
+                        pageable, orderId, productName, productCategory, status, createdBy, startDate, endDate, sortList
+                )
+        );
+    }
+
+    @Override
+    @Transactional
+    public ResUpdateOrderStatusDTO updateStatusOrder(ReqUpdateStatusOrderDTO dto, Long orderId) {
+
+        OrderEntity order = orderDomainService.findById(orderId);
+        StatusType status = dto.getStatus();
+
+        if (order.getStatus() == dto.getStatus()) {
+            return ResUpdateOrderStatusDTO.from(order);
+        }
+
+        orderDomainService.validateStatusChange(order, status);
+        order.updateStatus(status);
+
+        if (status == StatusType.COMPLETED) {
+            Long productId = order.getProductInfo().getProductId();
+            Integer quantity = order.getQuantity();
+            ProductEntity product = productDomainService.findProductById(productId);
+            product.addInventory(quantity);
+        }
+
+        return ResUpdateOrderStatusDTO.from(order);
+    }
+
+    @Override
+    @Transactional
+    public ResUpdateOrderQuantityDTO updateQuantityOrder(ReqUpdateQuantityOrderDTO dto, Long orderId) {
+        OrderEntity order = orderDomainService.findById(orderId);
+        orderDomainService.validateQuantityUpdate(order);
+
+        if (Objects.equals(order.getQuantity(), dto.getQuantity())) {
+            return ResUpdateOrderQuantityDTO.from(order);
+        }
+
+        order.updateQuantity(dto.getQuantity());
+
+        return ResUpdateOrderQuantityDTO.from(order);
+    }
 
 }

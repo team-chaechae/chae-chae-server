@@ -20,6 +20,11 @@ spring:
       port: ${REDIS_PORT}
       host: ${REDIS_HOST}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
 service:
   jwt:
     secret-key: ${JWT_SECRET_KEY}
