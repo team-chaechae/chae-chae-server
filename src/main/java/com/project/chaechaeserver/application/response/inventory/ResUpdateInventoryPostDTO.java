@@ -2,22 +2,22 @@ package com.project.chaechaeserver.application.response.inventory;
 
 
 import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ResVulkCreateInventoryPostDTO {
+public class ResUpdateInventoryPostDTO {
 
-    private List<Inventory> inventory;
+    private Inventory inventory;
 
-    public static ResVulkCreateInventoryPostDTO from(List<InventoryEntity> inventoryEntity) {
-        return ResVulkCreateInventoryPostDTO.builder()
+    public static ResUpdateInventoryPostDTO from(InventoryEntity inventoryEntity) {
+        return ResUpdateInventoryPostDTO.builder()
             .inventory(Inventory.from(inventoryEntity))
             .build();
     }
@@ -31,11 +31,6 @@ public class ResVulkCreateInventoryPostDTO {
         private Long productId;
         private Integer quantity;
 
-        public static List<Inventory> from(List<InventoryEntity> inventoryEntityList) {
-            return inventoryEntityList.stream()
-                .map(Inventory::from)
-                .toList();
-        }
 
         public static Inventory from(InventoryEntity inventoryEntity) {
             return Inventory.builder()

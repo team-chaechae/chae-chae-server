@@ -13,8 +13,6 @@ public interface ProductsRepository  {
 
     ProductEntity save(ProductEntity productEntity);
 
-    List<ProductEntity> findAllByIdInForWrite(List<Long> ids);
-
     ProductEntity findByIdForUpdate(Long id);
 
     ProductEntity findProductByProductId(Long id);
