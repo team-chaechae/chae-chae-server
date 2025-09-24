@@ -1,6 +1,5 @@
 package com.project.chaechaeserver.presentation.request.order;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -26,11 +25,9 @@ public class ReqCreateOrderDTO {
   @NoArgsConstructor
   public static class Order {
 
-    @Schema(example = "1")
     private Long productId;
 
     @Min(value = 1, message = "수량은 1개 이상이어야 합니다.")
-    @Schema(example = "10")
     private Integer quantity;
 
   }
