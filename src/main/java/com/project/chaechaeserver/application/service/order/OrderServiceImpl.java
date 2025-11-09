@@ -9,8 +9,8 @@ import com.project.chaechaeserver.domain.model.order.ProductInfo;
 import com.project.chaechaeserver.domain.model.order.constraint.StatusType;
 import com.project.chaechaeserver.domain.model.products.ProductEntity;
 import com.project.chaechaeserver.domain.repository.order.OrderRepository;
+import com.project.chaechaeserver.domain.repository.products.ProductsRepository;
 import com.project.chaechaeserver.domain.service.order.OrderDomainService;
-import com.project.chaechaeserver.domain.service.products.ProductDomainService;
 import com.project.chaechaeserver.presentation.request.order.ReqCreateOrderDTO;
 import com.project.chaechaeserver.presentation.request.order.ReqUpdateQuantityOrderDTO;
 import com.project.chaechaeserver.presentation.request.order.ReqUpdateStatusOrderDTO;
@@ -28,7 +28,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderDomainService orderDomainService;
-    private final ProductDomainService productDomainService;
+    private final ProductsRepository productsRepository;
 
     @Override
     @Transactional
@@ -40,7 +40,7 @@ public class OrderServiceImpl implements OrderService {
 
         StatusType status = StatusType.DEFAULT;
 
-        ProductEntity product = productDomainService.findProductById(productId);
+        ProductEntity product = productsRepository.findProductByProductId(productId);
 
         ProductInfo productInfo = new ProductInfo(
                 product.getId(),
@@ -86,7 +86,7 @@ public class OrderServiceImpl implements OrderService {
         if (status == StatusType.COMPLETED) {
             Long productId = order.getProductInfo().getProductId();
             Integer quantity = order.getQuantity();
-            ProductEntity product = productDomainService.findProductById(productId);
+            ProductEntity product = productsRepository.findProductByProductId(productId);
             product.addInventory(quantity);
         }
 
