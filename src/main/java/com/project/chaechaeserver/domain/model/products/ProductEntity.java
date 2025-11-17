@@ -1,26 +1,16 @@
 package com.project.chaechaeserver.domain.model.products;
 
-import com.project.chaechaeserver.application.global.excepion.BadRequestException;
-import com.project.chaechaeserver.application.global.excepion.EntityNotFoundException;
-import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
 import com.project.chaechaeserver.domain.model.products.constraint.ProductStatusType;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -48,12 +38,6 @@ public class ProductEntity {
     @Column(name ="category" , length = 50, nullable = false)
     private String category;
 
-    @Column(name = "quantity")
-    private Integer quantity;
-
-    @OneToMany(mappedBy = "product", cascade = {CascadeType.PERSIST}, fetch = FetchType.LAZY)
-    private List<InventoryEntity> inventoryHistories = new ArrayList<>();
-
     @Column(name = "price" ,nullable = false)
     private Integer price;
 
@@ -76,16 +60,13 @@ public class ProductEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public ProductEntity(String name, String category, Integer price,  Integer initialQuantity, ProductStatusType productStatusType, ProductStatusType.ProductOrderType orderStatusType) {
+    public ProductEntity(String name, String category, Integer price, ProductStatusType productStatusType, ProductStatusType.ProductOrderType orderStatusType) {
         this.name = name;
         this.category = category;
         this.price = price;
-        this.quantity = initialQuantity;
         this.productStatusType = productStatusType;
         this.orderStatusType = orderStatusType;
-        this.inventoryHistories = new ArrayList<>();
     }
-
 
     public static ProductEntity createProducts(String name, String category, Integer price) {
         return ProductEntity.builder()
@@ -94,145 +75,7 @@ public class ProductEntity {
             .price(price)
             .productStatusType(ProductStatusType.PENDING)
             .orderStatusType(null)
-            .initialQuantity(null)
             .build();
-
     }
-
-    public static void updateQuantitiesBulk(List<Long> productIds,
-        List<Integer> quantities,
-        Map<Long, ProductEntity> productMap) {
-        for (int i = 0; i < productIds.size(); i++) {
-            ProductEntity product = productMap.get(productIds.get(i));
-            if (product.quantity == null) {
-                product.quantity = quantities.get(i);
-            } else {
-                product.quantity += quantities.get(i);
-            }
-        }
-    }
-
-
-    public static void validateSufficientStock(List<Long> ids, List<Integer> quantities, Map<Long, ProductEntity> productEntityMap) {
-
-        for (int i = 0; i < ids.size() ; i++) {
-            ProductEntity productEntity = productEntityMap.get(ids.get(i));
-            if (productEntity.getQuantity() == null || productEntity.getQuantity() < quantities.get(i)) {
-                throw new IllegalStateException("재고가 부족합니다.");
-            }
-        }
-    }
-
-    public static List<InventoryEntity> createSaleInventoryEntities(
-
-        List<Long> ids, List<Integer> quantities, Map<Long, ProductEntity> productMap) {
-        List<InventoryEntity> inventoryEntities = new ArrayList<>();
-
-        for (int i = 0; i < ids.size() ; i++) {
-            ProductEntity productEntity = productMap.get(ids.get(i));
-
-            InventoryEntity inventory = InventoryEntity.builder()
-                .product(productEntity)
-                .quantity(-quantities.get(i))
-                .build();
-            inventoryEntities.add(inventory);
-
-        }
-        return inventoryEntities;
-    }
-
-    public static void decreaseQuantitiesBulk(List<Long> productIds,
-        List<Integer> quantities,
-        Map<Long, ProductEntity> productMap) {
-        for (int i = 0; i < productIds.size(); i++) {
-            Long productId = productIds.get(i);
-            Integer quantity = quantities.get(i);
-            ProductEntity product = productMap.get(productId);
-
-            if (product.getQuantity() == null) {
-                throw new EntityNotFoundException("재고 정보가 없습니다. 상품 ID: " + productId);
-            }
-            if (product.getQuantity() < quantity) {
-                throw new BadRequestException(
-                    String.format("재고가 부족합니다. 상품ID: %d, 현재재고: %d, 요청수량: %d",
-                        productId, product.getQuantity(), quantity)
-                );
-            }
-            product.quantity -= quantity;
-        }
-    }
-
-    public static List<InventoryEntity> createInventoryEntities(
-        List<Long> ids, List<Integer> quantities,
-        Map<Long, ProductEntity> productMap) {
-
-        List<InventoryEntity> inventoryEntities = new ArrayList<>();
-
-
-        for (int i = 0; i < ids.size() ; i++) {
-            ProductEntity productEntity = productMap.get(ids.get(i));
-
-            InventoryEntity inventory = InventoryEntity.builder()
-                .product(productEntity)
-                .quantity(quantities.get(i))
-                .build();
-            inventoryEntities.add(inventory);
-
-        }
-        return inventoryEntities;
-    }
-
-    public InventoryEntity modifyInventory(Integer newQuantity) {
-
-        Integer oldQuantity = this.quantity != null ? this.quantity : 0;
-        Integer changeAmount = newQuantity - oldQuantity;
-
-        this.quantity = newQuantity;
-
-        InventoryEntity inventory = InventoryEntity.createInventory(this, changeAmount);
-        this.inventoryHistories.add(inventory);
-
-        return inventory;
-    }
-
-    public static List<InventoryEntity> modifyQuantitiesBulk(List<Long> productIds,
-        List<Integer> newQuantities,
-        Map<Long, ProductEntity> productMap) {
-
-        List<InventoryEntity> createdHistories = new ArrayList<>();
-
-        for (int i = 0; i < productIds.size(); i++) {
-            ProductEntity product = productMap.get(productIds.get(i));
-            InventoryEntity history = product.modifyInventory(newQuantities.get(i));
-            createdHistories.add(history);
-        }
-
-        return createdHistories;
-
-    }
-
-    public InventoryEntity addInventory(Integer quantity) {
-        if (this.quantity == null) {
-            this.quantity = quantity;
-        } else {
-            this.quantity += quantity;
-        }
-
-        InventoryEntity inventory = InventoryEntity.createInventory(this, quantity);
-        this.inventoryHistories.add(inventory);
-        return inventory;
-    }
-
-    public InventoryEntity decreaseInventory(Integer quantity) {
-        if (this.quantity == null) {
-            throw new IllegalStateException("재고 정보가 없습니다.");
-        }
-        this.quantity -= quantity;
-
-        InventoryEntity inventory = InventoryEntity.createInventory(this, -quantity);
-        this.inventoryHistories.add(inventory);
-        return inventory;
-    }
-
 
 }
