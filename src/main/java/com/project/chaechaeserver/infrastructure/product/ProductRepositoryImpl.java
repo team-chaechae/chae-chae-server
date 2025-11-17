@@ -17,6 +17,7 @@ public class ProductRepositoryImpl implements ProductsRepository {
 
     private final ProductQueryRepository productQueryRepository;
     private final JpaProductRepository jpaProductRepository;
+    private final JdbcProductRepository jdbcProductRepository;
 
     @Override
     public boolean existsByProductName(String name) {
@@ -51,6 +52,31 @@ public class ProductRepositoryImpl implements ProductsRepository {
         , List<String> sortList) {
         return productQueryRepository.findProductByDeletedAtIsNullWithCondition(
             pageable, productName, deletedAt, productStatus, orderStatus, startDate, endDate, exactDate, sortList);
+    }
+
+    @Override
+    public int bulkIncreaseQuantities(List<Long> productIds, List<Integer> quantities) {
+        return jdbcProductRepository.bulkIncreaseQuantities(productIds, quantities);
+    }
+
+    @Override
+    public int bulkDecreaseQuantities(List<Long> productIds, List<Integer> quantities) {
+        return jdbcProductRepository.bulkDecreaseQuantities(productIds, quantities);
+    }
+
+    @Override
+    public int bulkSetQuantities(List<Long> productIds, List<Integer> newQuantities) {
+        return jdbcProductRepository.bulkSetQuantities(productIds, newQuantities);
+    }
+
+    @Override
+    public List<ProductEntity> findAllById(List<Long> testProductIds) {
+        return jpaProductRepository.findAllById(testProductIds);
+    }
+
+    @Override
+    public List<ProductEntity> findAll() {
+        return jpaProductRepository.findAll();
     }
 
 }
