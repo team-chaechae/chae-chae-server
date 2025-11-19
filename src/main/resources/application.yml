@@ -5,3 +5,6 @@ spring:
     import: classpath:application-key.yml
   profiles:
     active: dev
+
+server:
+  port: 8080

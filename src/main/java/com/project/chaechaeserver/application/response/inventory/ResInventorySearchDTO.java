@@ -26,6 +26,12 @@ public class ResInventorySearchDTO {
             .build();
     }
 
+    public static ResInventorySearchDTO fromDto(Page<InventoryWithProductDto> inventoryPage) {
+        return ResInventorySearchDTO.builder()
+            .inventoryPage(InventoryPage.fromDto(inventoryPage))
+            .build();
+    }
+
     @Builder
     @Getter
     @NoArgsConstructor
@@ -39,6 +45,13 @@ public class ResInventorySearchDTO {
             return InventoryPage.builder()
                 .contents(Inventories.from(inventoryPage.getContent()))
                 .page(PageDetails.from(inventoryPage))
+                .build();
+        }
+
+        private static InventoryPage fromDto(Page<InventoryWithProductDto> inventoryPage) {
+            return InventoryPage.builder()
+                .contents(Inventories.fromDto(inventoryPage.getContent()))
+                .page(PageDetails.fromDto(inventoryPage))
                 .build();
         }
 
@@ -58,22 +71,42 @@ public class ResInventorySearchDTO {
             private LocalDateTime updatedAt;
 
             public static List<Inventories> from(List<InventoryEntity> inventoryEntities) {
+                // Note: ProductEntity는 별도로 조회되지 않으므로 null로 전달
+                // QueryRepository에서 조인으로 가져온 경우 별도 처리 필요
                 return inventoryEntities.stream()
-                    .map(Inventories::from)
+                    .map(inv -> Inventories.from(inv, null))
                     .toList();
             }
 
-            public static Inventories from(InventoryEntity inventoryEntity) {
-                ProductEntity product = inventoryEntity.getProduct();
+            public static List<Inventories> fromDto(List<InventoryWithProductDto> dtoList) {
+                return dtoList.stream()
+                    .map(Inventories::fromDto)
+                    .toList();
+            }
+
+            public static Inventories from(InventoryEntity inventoryEntity, ProductEntity product) {
                 return Inventories.builder()
                     .inventoryId(inventoryEntity.getId())
-                    .productId(product.getId())
-                    .productName(product.getName())
-                    .productPrice(product.getPrice())
-                    .productStatus(product.getProductStatusType())
+                    .productId(inventoryEntity.getProductId())
+                    .productName(product != null ? product.getName() : null)
+                    .productPrice(product != null ? product.getPrice() : null)
+                    .productStatus(product != null ? product.getProductStatusType() : null)
                     .quantity(inventoryEntity.getQuantity())
                     .createdAt(inventoryEntity.getCreatedAt())
                     .updatedAt(inventoryEntity.getUpdatedAt())
+                    .build();
+            }
+
+            public static Inventories fromDto(InventoryWithProductDto dto) {
+                return Inventories.builder()
+                    .inventoryId(dto.getInventoryId())
+                    .productId(dto.getProductId())
+                    .productName(dto.getProductName())
+                    .productPrice(dto.getProductPrice())
+                    .productStatus(dto.getProductStatus())
+                    .quantity(dto.getQuantity())
+                    .createdAt(dto.getCreatedAt())
+                    .updatedAt(dto.getUpdatedAt())
                     .build();
             }
         }
@@ -90,6 +123,15 @@ public class ResInventorySearchDTO {
             private int totalPages;
 
             public static PageDetails from(Page<InventoryEntity> inventoryPage) {
+                return PageDetails.builder()
+                    .size(inventoryPage.getSize())
+                    .number(inventoryPage.getNumber())
+                    .totalElements(inventoryPage.getTotalElements())
+                    .totalPages(inventoryPage.getTotalPages())
+                    .build();
+            }
+
+            public static PageDetails fromDto(Page<InventoryWithProductDto> inventoryPage) {
                 return PageDetails.builder()
                     .size(inventoryPage.getSize())
                     .number(inventoryPage.getNumber())
