@@ -4,6 +4,8 @@ import static com.project.chaechaeserver.domain.model.inventory.QInventoryEntity
 import static com.project.chaechaeserver.domain.model.products.QProductEntity.productEntity;
 import static org.springframework.util.StringUtils.hasText;
 
+import com.project.chaechaeserver.application.response.inventory.InventoryWithProductDto;
+import com.project.chaechaeserver.application.response.inventory.QInventoryWithProductDto;
 import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
 import com.project.chaechaeserver.domain.model.products.constraint.ProductStatusType;
 import com.querydsl.core.types.Order;
@@ -30,7 +32,7 @@ public class InventoryQueryRepository {
     public Page<InventoryEntity> findInventoryWithCondition(
         Pageable pageable,
         String productName,
-        Boolean deletedAt,
+        Boolean includeDeleted,
         ProductStatusType productStatus,
         Long productId,
         LocalDate startDate,
@@ -42,13 +44,13 @@ public class InventoryQueryRepository {
 
         List<InventoryEntity> result = queryFactory
             .selectFrom(inventoryEntity)
-            .leftJoin(inventoryEntity.product, productEntity).fetchJoin()
+            .leftJoin(productEntity).on(inventoryEntity.productId.eq(productEntity.id))
             .where(
                 productNameLike(productName),
                 productStatusEq(productStatus),
                 productIdEq(productId),
-                createdAtCondition(startDate, endDate, exactDate),
-                isdDeletedAt(deletedAt)
+                dateRangeCondition(startDate, endDate, exactDate),
+                deletedCondition(includeDeleted)
             )
             .orderBy(orderSpecifiers.toArray(new OrderSpecifier[0]))
             .offset(pageable.getOffset())
@@ -58,37 +60,18 @@ public class InventoryQueryRepository {
         JPAQuery<Long> countQuery = queryFactory
             .select(inventoryEntity.count())
             .from(inventoryEntity)
-            .leftJoin(inventoryEntity.product, productEntity)
+            .leftJoin(productEntity).on(inventoryEntity.productId.eq(productEntity.id))
             .where(
                 productNameLike(productName),
                 productStatusEq(productStatus),
                 productIdEq(productId),
-                createdAtCondition(startDate, endDate, exactDate),
-                isdDeletedAt(deletedAt)
+                dateRangeCondition(startDate, endDate, exactDate),
+                deletedCondition(includeDeleted)
             );
 
         return PageableExecutionUtils.getPage(result, pageable, countQuery::fetchOne);
     }
 
-    private BooleanExpression createdAtCondition(LocalDate startDate, LocalDate endDate, LocalDate exactDate) {
-        // 특정 날짜만 조회
-        if (exactDate != null) {
-            LocalDateTime start = exactDate.atStartOfDay();
-            LocalDateTime end = exactDate.atTime(23, 59, 59);
-            return inventoryEntity.createdAt.between(start, end);
-        }
-
-        // 날짜 범위 지정에 따른 조회
-        if (startDate != null && endDate != null) {
-            return inventoryEntity.createdAt.between(startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
-        } else if (startDate != null) {
-            return inventoryEntity.createdAt.goe(startDate.atStartOfDay());
-        } else if (endDate != null) {
-            return inventoryEntity.createdAt.loe(endDate.atTime(23, 59, 59));
-        }
-
-        return null;
-    }
 
     private BooleanExpression productNameLike(String productName) {
         return hasText(productName) ? productEntity.name.containsIgnoreCase(productName) : null;
@@ -99,15 +82,43 @@ public class InventoryQueryRepository {
     }
 
     private BooleanExpression productIdEq(Long productId) {
-        return productId != null ? inventoryEntity.product.id.eq(productId) : null;
+        return productId != null ? inventoryEntity.productId.eq(productId) : null;
     }
 
-    private BooleanExpression isdDeletedAt(Boolean deletedCond) {
-        if (deletedCond != null) {
-            return deletedCond ? inventoryEntity.deletedAt.isNotNull() : inventoryEntity.deletedAt.isNull();
-        } else {
+    /**
+     * 날짜 범위 조건 생성
+     */
+    private BooleanExpression dateRangeCondition(LocalDate startDate, LocalDate endDate, LocalDate exactDate) {
+        // 특정 날짜만 조회
+        if (exactDate != null) {
+            LocalDateTime start = exactDate.atStartOfDay();
+            LocalDateTime end = exactDate.plusDays(1).atStartOfDay();
+            return inventoryEntity.createdAt.goe(start).and(inventoryEntity.createdAt.lt(end));
+        }
+
+        // 날짜 범위 지정
+        if (startDate != null && endDate != null) {
+            LocalDateTime start = startDate.atStartOfDay();
+            LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+            return inventoryEntity.createdAt.goe(start).and(inventoryEntity.createdAt.lt(end));
+        } else if (startDate != null) {
+            return inventoryEntity.createdAt.goe(startDate.atStartOfDay());
+        } else if (endDate != null) {
+            LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+            return inventoryEntity.createdAt.lt(end);
+        }
+
+        return null;
+    }
+
+    /**
+     * 삭제 여부 조건 생성
+     */
+    private BooleanExpression deletedCondition(Boolean includeDeleted) {
+        if (includeDeleted == null || !includeDeleted) {
             return inventoryEntity.deletedAt.isNull();
         }
+        return inventoryEntity.deletedAt.isNotNull();
     }
 
     private List<OrderSpecifier<?>> buildOrderSpecifiers(List<String> sortOptions) {
@@ -135,5 +146,118 @@ public class InventoryQueryRepository {
         }
 
         return orders;
+    }
+
+    /**
+     * 상품의 현재 재고 조회 (히스토리 합계)
+     * @param productId 상품 ID
+     * @return 현재 재고 (히스토리가 없으면 0)
+     */
+    public Integer getCurrentStock(Long productId) {
+        Integer stock = queryFactory
+            .select(inventoryEntity.quantity.sum())
+            .from(inventoryEntity)
+            .where(
+                inventoryEntity.productId.eq(productId),
+                inventoryEntity.deletedAt.isNull()
+            )
+            .fetchOne();
+
+        return stock != null ? stock : 0;
+    }
+
+    /**
+     * 여러 상품의 현재 재고를 한 번에 조회
+     * @param productIds 상품 ID 목록
+     * @return productId -> 현재 재고 맵
+     */
+    public java.util.Map<Long, Integer> getCurrentStockMap(List<Long> productIds) {
+        List<com.querydsl.core.Tuple> results = queryFactory
+            .select(
+                inventoryEntity.productId,
+                inventoryEntity.quantity.sum()
+            )
+            .from(inventoryEntity)
+            .where(
+                inventoryEntity.productId.in(productIds),
+                inventoryEntity.deletedAt.isNull()
+            )
+            .groupBy(inventoryEntity.productId)
+            .fetch();
+
+        java.util.Map<Long, Integer> stockMap = new java.util.HashMap<>();
+
+        // 조회된 결과 매핑
+        for (com.querydsl.core.Tuple tuple : results) {
+            Long productId = tuple.get(inventoryEntity.productId);
+            Integer stock = tuple.get(inventoryEntity.quantity.sum());
+            stockMap.put(productId, stock != null ? stock : 0);
+        }
+
+        // 조회되지 않은 상품은 0으로 초기화
+        for (Long productId : productIds) {
+            stockMap.putIfAbsent(productId, 0);
+        }
+
+        return stockMap;
+    }
+
+    /**
+     * Inventory와 Product 정보를 조인해서 조회 (Projection 사용)
+     * Product 정보를 포함한 DTO로 반환
+     */
+    public Page<InventoryWithProductDto> findInventoryWithProduct(
+        Pageable pageable,
+        String productName,
+        Boolean deletedAt,
+        ProductStatusType productStatus,
+        Long productId,
+        LocalDate startDate,
+        LocalDate endDate,
+        LocalDate exactDate,
+        List<String> sortList) {
+
+        List<OrderSpecifier<?>> orderSpecifiers = buildOrderSpecifiers(sortList);
+
+        // Projection을 사용해서 Product 정보를 포함한 DTO로 조회
+        List<InventoryWithProductDto> result = queryFactory
+            .select(new QInventoryWithProductDto(
+                inventoryEntity.id,
+                inventoryEntity.productId,
+                productEntity.name,
+                productEntity.price,
+                productEntity.productStatusType,
+                inventoryEntity.quantity,
+                inventoryEntity.createdAt,
+                inventoryEntity.updatedAt
+            ))
+            .from(inventoryEntity)
+            .leftJoin(productEntity).on(inventoryEntity.productId.eq(productEntity.id))
+            .where(
+                productNameLike(productName),
+                productStatusEq(productStatus),
+                productIdEq(productId),
+                dateRangeCondition(startDate, endDate, exactDate),
+                deletedCondition(deletedAt)
+            )
+            .orderBy(orderSpecifiers.toArray(new OrderSpecifier[0]))
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
+            .fetch();
+
+        // 카운트 쿼리 - Product 정보는 항상 필요하므로 조인
+        JPAQuery<Long> countQuery = queryFactory
+            .select(inventoryEntity.count())
+            .from(inventoryEntity)
+            .leftJoin(productEntity).on(inventoryEntity.productId.eq(productEntity.id))
+            .where(
+                productNameLike(productName),
+                productStatusEq(productStatus),
+                productIdEq(productId),
+                dateRangeCondition(startDate, endDate, exactDate),
+                deletedCondition(deletedAt)
+            );
+
+        return PageableExecutionUtils.getPage(result, pageable, countQuery::fetchOne);
     }
 }
