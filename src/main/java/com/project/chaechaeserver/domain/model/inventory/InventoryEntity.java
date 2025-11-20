@@ -1,14 +1,13 @@
 package com.project.chaechaeserver.domain.model.inventory;
 
-import com.project.chaechaeserver.domain.model.products.ProductEntity;
+import com.project.chaechaeserver.domain.model.inventory.constraint.InventoryChangeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -30,12 +29,15 @@ public class InventoryEntity {
     @Column(name = "inventory_id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    private ProductEntity product;
+    @Column(name = "product_id", nullable = false)
+    private Long productId;
 
     @Column(name = "quantity" , nullable = false)
     private Integer quantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "change_type", nullable = false)
+    private InventoryChangeType changeType;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
@@ -49,15 +51,17 @@ public class InventoryEntity {
     private LocalDateTime deletedAt;
 
     @Builder
-    public InventoryEntity(ProductEntity product, Integer quantity) {
-        this.product = product;
+    public InventoryEntity(Long productId, Integer quantity, InventoryChangeType changeType) {
+        this.productId = productId;
         this.quantity = quantity;
+        this.changeType = changeType;
     }
 
-    public static InventoryEntity createInventory(ProductEntity product, Integer quantity) {
+    public static InventoryEntity createInventory(Long productId, Integer quantity, InventoryChangeType changeType) {
         return InventoryEntity.builder()
-            .product(product)
+            .productId(productId)
             .quantity(quantity)
+            .changeType(changeType)
             .build();
     }
 
