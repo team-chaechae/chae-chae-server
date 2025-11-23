@@ -66,7 +66,9 @@ public class SecurityConfig {
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/users/login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-resources/**").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/actuator/health", "/actuator/prometheus", "/actuator/metrics/**").permitAll()
+
+                    .anyRequest().authenticated()
         );
 
         // 필터 관리
