@@ -17,9 +17,9 @@ public class ResGetProductWithOrderStatus {
         this.product = product;
     }
 
-    public static ResGetProductWithOrderStatus from(ProductEntity productEntity) {
+    public static ResGetProductWithOrderStatus from(ProductEntity productEntity, Integer currentStock) {
         return ResGetProductWithOrderStatus.builder()
-            .product(Product.from(productEntity))
+            .product(Product.from(productEntity, currentStock))
             .build();
     }
 
@@ -46,13 +46,13 @@ public class ResGetProductWithOrderStatus {
             this.orderStatus = orderStatus;
         }
 
-        public static Product from(ProductEntity productEntity) {
+        public static Product from(ProductEntity productEntity, Integer currentStock) {
             return Product.builder()
                 .id(productEntity.getId())
                 .name(productEntity.getName())
                 .category(productEntity.getCategory())
                 .price(productEntity.getPrice())
-                .currentQuantity(productEntity.getQuantity())
+                .currentQuantity(currentStock)
                 .status(String.valueOf(productEntity.getProductStatusType()))
                 .orderStatus(String.valueOf(productEntity.getOrderStatusType()))
                 .build();
