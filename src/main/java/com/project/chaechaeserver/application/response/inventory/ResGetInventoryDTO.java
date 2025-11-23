@@ -15,9 +15,10 @@ public class ResGetInventoryDTO {
     private Inventory inventory;
 
 
-    public static ResGetInventoryDTO from(InventoryEntity inventoryEntity) {
+
+    public static ResGetInventoryDTO fromDto(InventoryWithProductDto dto) {
         return ResGetInventoryDTO.builder()
-            .inventory(Inventory.from(inventoryEntity))
+            .inventory(Inventory.fromDto(dto))
             .build();
     }
 
@@ -32,12 +33,13 @@ public class ResGetInventoryDTO {
         private Long inventoryId;
 
 
-        public static Inventory from(InventoryEntity inventoryEntity) {
+
+        public static Inventory fromDto(InventoryWithProductDto dto) {
             return Inventory.builder()
-                .productName(inventoryEntity.getProduct().getName())
-                .quantity(inventoryEntity.getQuantity())
-                .productId(inventoryEntity.getProduct().getId())
-                .inventoryId(inventoryEntity.getId())
+                .productName(dto.getProductName())
+                .quantity(dto.getQuantity())
+                .productId(dto.getProductId())
+                .inventoryId(dto.getInventoryId())
                 .build();
         }
     }
