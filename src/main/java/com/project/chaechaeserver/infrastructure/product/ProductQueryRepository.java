@@ -27,7 +27,7 @@ public class ProductQueryRepository
     private final JPAQueryFactory queryFactory;
 
     public Page<ProductEntity> findProductByDeletedAtIsNullWithCondition(Pageable pageable, String productName,
-        Boolean deletedAt, ProductStatusType productStatus, ProductStatusType.ProductOrderType orderStatus ,LocalDate startDate, LocalDate endDate, LocalDate exactDate,
+        Boolean includeDeleted, ProductStatusType productStatus, ProductStatusType.ProductOrderType orderStatus ,LocalDate startDate, LocalDate endDate, LocalDate exactDate,
         List<String> sortList) {
 
         List<OrderSpecifier<?>> orderSpecifiers = buildOrderSpecifiers(sortList);
@@ -35,10 +35,10 @@ public class ProductQueryRepository
         List<ProductEntity> result = queryFactory.selectFrom(productEntity)
             .where(
                 productNameLike(productName),
-                isDeleted(deletedAt),
+                deletedCondition(includeDeleted),
                 productStatusEq(productStatus),
                 orderStatusEq(orderStatus),
-                createdAtCondition(startDate, endDate, exactDate)
+                dateRangeCondition(startDate, endDate, exactDate)
             ).orderBy(orderSpecifiers.toArray(new OrderSpecifier[0]))
             .offset(pageable.getOffset())
             .limit(pageable.getPageSize())
@@ -48,37 +48,17 @@ public class ProductQueryRepository
             .select(productEntity.count())
             .from(productEntity)
             .where(
-                isDeleted(deletedAt),
+                deletedCondition(includeDeleted),
                 productNameLike(productName),
                 productStatusEq(productStatus),
                 orderStatusEq(orderStatus),
-                createdAtCondition(startDate, endDate, exactDate)
+                dateRangeCondition(startDate, endDate, exactDate)
             );
 
         return PageableExecutionUtils.getPage(result, pageable, countQuery::fetchOne);
     }
 
 
-    private BooleanExpression createdAtCondition(LocalDate startDate, LocalDate endDate, LocalDate exactDate) {
-
-        // 특정 날짜만 조회
-        if (exactDate != null) {
-            LocalDateTime start = exactDate.atStartOfDay();
-            LocalDateTime end = exactDate.atTime(23, 59, 59);
-            return productEntity.createdAt.between(start, end);
-        }
-
-        // 날짜 범위 지정에 따른 조회
-        if (startDate != null && endDate != null) {
-            return productEntity.createdAt.between(startDate.atStartOfDay(), endDate.atTime(23, 59, 59));
-        } else if (startDate != null) {
-            return productEntity.createdAt.goe(startDate.atStartOfDay());
-        } else if (endDate != null) {
-            return productEntity.createdAt.loe(endDate.atTime(23, 59, 59));
-        }
-
-        return null;
-    }
 
     private BooleanExpression productNameLike(String productName) {
         return hasText(productName) ? productEntity.name.containsIgnoreCase(productName) : null;
@@ -86,16 +66,45 @@ public class ProductQueryRepository
     private BooleanExpression orderStatusEq(ProductStatusType.ProductOrderType orderStatus) {
         return orderStatus != null ? productEntity.orderStatusType.eq(orderStatus) : null;
     }
-    private BooleanExpression isDeleted(Boolean deletedCond) {
-        if (deletedCond != null) {
-            return deletedCond ? productEntity.deletedAt.isNotNull() : productEntity.deletedAt.isNull();
-        } else {
-            return productEntity.deletedAt.isNull();
-        }
-    }
 
     private BooleanExpression productStatusEq(ProductStatusType status) {
         return status != null ? productEntity.productStatusType.eq(status) : null;
+    }
+
+    /**
+     * 날짜 범위 조건 생성
+     */
+    private BooleanExpression dateRangeCondition(LocalDate startDate, LocalDate endDate, LocalDate exactDate) {
+        // 특정 날짜만 조회
+        if (exactDate != null) {
+            LocalDateTime start = exactDate.atStartOfDay();
+            LocalDateTime end = exactDate.plusDays(1).atStartOfDay();
+            return productEntity.createdAt.goe(start).and(productEntity.createdAt.lt(end));
+        }
+
+        // 날짜 범위 지정
+        if (startDate != null && endDate != null) {
+            LocalDateTime start = startDate.atStartOfDay();
+            LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+            return productEntity.createdAt.goe(start).and(productEntity.createdAt.lt(end));
+        } else if (startDate != null) {
+            return productEntity.createdAt.goe(startDate.atStartOfDay());
+        } else if (endDate != null) {
+            LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+            return productEntity.createdAt.lt(end);
+        }
+
+        return null;
+    }
+
+    /**
+     * 삭제 여부 조건 생성
+     */
+    private BooleanExpression deletedCondition(Boolean includeDeleted) {
+        if (includeDeleted == null || !includeDeleted) {
+            return productEntity.deletedAt.isNull();
+        }
+        return productEntity.deletedAt.isNotNull();
     }
 
     private List<OrderSpecifier<?>> buildOrderSpecifiers(List<String> sortOptions) {
