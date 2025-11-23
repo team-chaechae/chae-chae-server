@@ -19,9 +19,9 @@ public class ResProductSearchWithOrderStatusDTO {
 
     private ProductPage productPage;
 
-    public static ResProductSearchWithOrderStatusDTO from(Page<ProductEntity> productPage) {
+    public static ResProductSearchWithOrderStatusDTO from(Page<ProductEntity> productPage, java.util.Map<Long, Integer> stockMap) {
         return ResProductSearchWithOrderStatusDTO.builder()
-            .productPage(ProductPage.from(productPage))
+            .productPage(ProductPage.from(productPage, stockMap))
             .build();
     }
 
@@ -34,9 +34,9 @@ public class ResProductSearchWithOrderStatusDTO {
         private List<Products> content;
         private ProductPageDetails page;
 
-        public static ProductPage from(Page<ProductEntity> productEntityPage) {
+        public static ProductPage from(Page<ProductEntity> productEntityPage, java.util.Map<Long, Integer> stockMap) {
             return ProductPage.builder()
-                .content(Products.from(productEntityPage.getContent()))
+                .content(Products.from(productEntityPage.getContent(), stockMap))
                 .page(ProductPageDetails.from(productEntityPage))
                 .build();
         }
@@ -53,19 +53,19 @@ public class ResProductSearchWithOrderStatusDTO {
             private Integer price;
             private Integer currentQuantity;
 
-            public static List<Products> from(List<ProductEntity> productEntityList) {
+            public static List<Products> from(List<ProductEntity> productEntityList, java.util.Map<Long, Integer> stockMap) {
                 return productEntityList.stream()
-                    .map(Products::from)
+                    .map(product -> Products.from(product, stockMap))
                     .toList();
             }
 
-            public static Products from(ProductEntity productEntity) {
+            public static Products from(ProductEntity productEntity, java.util.Map<Long, Integer> stockMap) {
                 return Products.builder()
                     .id(productEntity.getId())
                     .name(productEntity.getName())
                     .category(productEntity.getCategory())
                     .price(productEntity.getPrice())
-                    .currentQuantity(productEntity.getQuantity())
+                    .currentQuantity(stockMap.getOrDefault(productEntity.getId(), 0))
                     .build();
             }
         }
