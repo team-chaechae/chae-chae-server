@@ -203,6 +203,32 @@ public class InventoryQueryRepository {
     }
 
     /**
+     * 특정 Inventory를 Product 정보와 함께 조회
+     * @param id Inventory ID
+     * @return Product 정보를 포함한 InventoryWithProductDto
+     */
+    public InventoryWithProductDto findInventoryWithProductById(Long id) {
+        return queryFactory
+            .select(new QInventoryWithProductDto(
+                inventoryEntity.id,
+                inventoryEntity.productId,
+                productEntity.name,
+                productEntity.price,
+                productEntity.productStatusType,
+                inventoryEntity.quantity,
+                inventoryEntity.createdAt,
+                inventoryEntity.updatedAt
+            ))
+            .from(inventoryEntity)
+            .innerJoin(productEntity).on(inventoryEntity.productId.eq(productEntity.id))
+            .where(
+                inventoryEntity.id.eq(id),
+                inventoryEntity.deletedAt.isNull()
+            )
+            .fetchOne();
+    }
+
+    /**
      * Inventory와 Product 정보를 조인해서 조회 (Projection 사용)
      * Product 정보를 포함한 DTO로 반환
      */
