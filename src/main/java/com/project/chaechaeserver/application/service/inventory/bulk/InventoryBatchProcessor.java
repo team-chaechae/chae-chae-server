@@ -1,4 +1,4 @@
-package com.project.chaechaeserver.domain.service.inventory;
+package com.project.chaechaeserver.application.service.inventory.bulk;
 
 import com.project.chaechaeserver.application.service.inventory.InventoryCommonService;
 import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
