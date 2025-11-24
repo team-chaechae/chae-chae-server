@@ -8,8 +8,9 @@ import org.springframework.util.StringUtils;
 @Getter
 public enum StatusType {
 
+    PENDING(Status.PENDING, "주문 대기"),
     APPROVED(Status.APPROVED, "승인"),
-    COMPLETED(Status.COMPLETED, "완료"),
+    COMPLETED(Status.COMPLETED, "주문 완료"),
     CANCELLED(Status.CANCELLED, "취소");
 
     private final String status;
@@ -23,6 +24,7 @@ public enum StatusType {
 
     // 상태 변경 가능 목록
     static {
+        PENDING.nextAvailableStatuses = Set.of(APPROVED, CANCELLED);
         APPROVED.nextAvailableStatuses = Set.of(COMPLETED, CANCELLED);
         COMPLETED.nextAvailableStatuses = Set.of();
         CANCELLED.nextAvailableStatuses = Set.of();
@@ -43,9 +45,10 @@ public enum StatusType {
                 .orElse(null);
     }
 
-    public static final StatusType DEFAULT = APPROVED;
+    public static final StatusType DEFAULT = PENDING;
 
     public static class Status {
+        public static final String PENDING = "STATUS_PENDING";
         public static final String APPROVED = "STATUS_APPROVED";
         public static final String COMPLETED = "STATUS_COMPLETED";
         public static final String CANCELLED = "STATUS_CANCELLED";
