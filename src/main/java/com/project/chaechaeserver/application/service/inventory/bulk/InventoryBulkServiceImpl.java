@@ -4,11 +4,10 @@ import com.project.chaechaeserver.application.global.annotation.BatchProcessing;
 import com.project.chaechaeserver.application.response.inventory.bulk.ResBulkCreateInventoryPostDTO;
 import com.project.chaechaeserver.application.response.inventory.bulk.ResBulkSaleInventoryDTO;
 import com.project.chaechaeserver.application.response.inventory.bulk.ResUpdateInventoryDTO;
-import com.project.chaechaeserver.domain.event.InventoryEvent;
+import com.project.chaechaeserver.application.service.inventory.InventoryCommonService;
 import com.project.chaechaeserver.domain.model.inventory.InventoryEntity;
 import com.project.chaechaeserver.domain.model.inventory.constraint.InventoryChangeType;
 import com.project.chaechaeserver.domain.repository.inventory.InventoryRepository;
-import com.project.chaechaeserver.domain.service.inventory.InventoryEventPublisher;
 import com.project.chaechaeserver.presentation.request.inventory.bulk.ReqBulkCreateInventoryDTO;
 import com.project.chaechaeserver.presentation.request.inventory.bulk.ReqUpdateInventoryDTO;
 import java.util.ArrayList;
@@ -26,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
  * - 입고/출고 대량 처리 오케스트레이션
  * - 재고 조정
  * - 검증 및 배치 분할
- * - 이벤트 발행
  */
 @Slf4j
 @Service
@@ -37,8 +35,7 @@ public class InventoryBulkServiceImpl implements InventoryBulkService {
 
     private final InventoryRepository inventoryRepository;
     private final InventoryBatchProcessor batchProcessor;
-    private final InventoryEventPublisher eventPublisher;
-    private final com.project.chaechaeserver.application.service.inventory.InventoryCommonService inventoryCommonService;
+    private final InventoryCommonService inventoryCommonService;
 
     @Override
     @BatchProcessing(value = "재고 입고", batchSize = BATCH_SIZE)
@@ -55,7 +52,7 @@ public class InventoryBulkServiceImpl implements InventoryBulkService {
         // 상품 ID 유효성 검증
         inventoryCommonService.validateProductIds(productIds);
 
-        // 1. 배치 단위로 쪼개서 처리 (응용 계층 오케스트레이션)
+        // 배치 단위로 쪼개서 처리 (응용 계층 오케스트레이션)
         List<InventoryEntity> allResults = new ArrayList<>();
         for (int i = 0; i < productIds.size(); i += BATCH_SIZE) {
             int endIndex = Math.min(i + BATCH_SIZE, productIds.size());
@@ -68,10 +65,6 @@ public class InventoryBulkServiceImpl implements InventoryBulkService {
             List<InventoryEntity> batchResults = batchProcessor.processBatchReceive(batchIds, batchQuantities);
             allResults.addAll(batchResults);
         }
-
-        // 2. 모든 배치 처리 완료 후 이벤트 발행
-        InventoryEvent event = InventoryEvent.createBulkReceivedEvent(allResults);
-        eventPublisher.publishEvent(event);
 
         return ResBulkCreateInventoryPostDTO.from(allResults);
     }
@@ -117,10 +110,6 @@ public class InventoryBulkServiceImpl implements InventoryBulkService {
             allResults.addAll(batchResults);
         }
 
-        // 4. 모든 배치 처리 완료 후 이벤트 발행
-        InventoryEvent event = InventoryEvent.createBulkModifiedEvent(allResults);
-        eventPublisher.publishEvent(event);
-
         return ResUpdateInventoryDTO.from(allResults);
     }
 
@@ -144,10 +133,6 @@ public class InventoryBulkServiceImpl implements InventoryBulkService {
             quantities,
             InventoryChangeType.ADJUST
         );
-
-        // 이벤트 발행
-        InventoryEvent event = InventoryEvent.createBulkShippedEvent(savedHistories);
-        eventPublisher.publishEvent(event);
 
         return ResBulkSaleInventoryDTO.from(savedHistories);
     }
