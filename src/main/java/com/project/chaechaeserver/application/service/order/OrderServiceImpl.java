@@ -83,12 +83,8 @@ public class OrderServiceImpl implements OrderService {
         orderDomainService.validateStatusChange(order, status);
         order.updateStatus(status);
 
-        if (status == StatusType.COMPLETED) {
-            Long productId = order.getProductInfo().getProductId();
-            Integer quantity = order.getQuantity();
-            ProductEntity product = productsRepository.findProductByProductId(productId);
-            product.addInventory(quantity);
-        }
+        // TODO: 재고 증가 로직은 재고 도메인에서 처리 필요
+        // 현재는 재고/상품이 분리되어 별도 처리 필요
 
         return ResUpdateOrderStatusDTO.from(order);
     }
