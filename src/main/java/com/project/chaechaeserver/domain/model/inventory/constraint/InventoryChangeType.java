@@ -4,7 +4,6 @@ import lombok.Getter;
 
 @Getter
 public enum InventoryChangeType {
-    // 입출고 관리
     RECEIVE("입고"),
     SALE("판매"),
     ADJUST("재고 조정"),
