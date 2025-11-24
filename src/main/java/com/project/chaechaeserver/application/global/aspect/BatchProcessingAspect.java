@@ -1,6 +1,8 @@
 package com.project.chaechaeserver.application.global.aspect;
 
 import com.project.chaechaeserver.application.global.annotation.BatchProcessing;
+import com.project.chaechaeserver.presentation.request.inventory.bulk.ReqBulkCreateInventoryDTO;
+import com.project.chaechaeserver.presentation.request.inventory.bulk.ReqUpdateInventoryDTO;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -77,6 +79,12 @@ public class BatchProcessingAspect {
         for (Object arg : args) {
             if (arg instanceof List<?> list) {
                 return list.size();
+            }
+            if (arg instanceof ReqBulkCreateInventoryDTO dto) {
+                return dto.getInventory() != null ? dto.getInventory().size() : 0;
+            }
+            if (arg instanceof ReqUpdateInventoryDTO dto) {
+                return dto.getInventory() != null ? dto.getInventory().size() : 0;
             }
         }
         return 0;
