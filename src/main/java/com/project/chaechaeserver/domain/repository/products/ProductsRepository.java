@@ -24,13 +24,6 @@ public interface ProductsRepository  {
         LocalDate endDate, LocalDate exactDate
         , List<String> sortList);
 
-    // JDBC 벌크 업데이트 메서드
-    int bulkIncreaseQuantities(List<Long> productIds, List<Integer> quantities);
-
-    int bulkDecreaseQuantities(List<Long> productIds, List<Integer> quantities);
-
-    int bulkSetQuantities(List<Long> productIds, List<Integer> newQuantities);
-
     List<ProductEntity> findAllById(List<Long> testProductIds);
 
     List<ProductEntity> findAll();
