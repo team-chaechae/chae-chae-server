@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -29,14 +30,14 @@ public class OrderCustomerServiceImpl implements OrderCustomerService {
         OrderCustomerEntity orderCustomer = OrderCustomerEntity.createOrder(dto);
         OrderCustomerEntity savedOrder = orderCustomerRepository.save(orderCustomer);
 
-        // 재고 차감 처리
-        List<Long> productIds = savedOrder.getOrderItems().stream()
-            .map(item -> Long.valueOf(item.getProductId()))
-            .toList();
+        // 재고 차감 처리 (한 번의 순회로 처리)
+        List<Long> productIds = new ArrayList<>();
+        List<Integer> quantities = new ArrayList<>();
 
-        List<Integer> quantities = savedOrder.getOrderItems().stream()
-            .map(item -> item.getQuantity())
-            .toList();
+        savedOrder.getOrderItems().forEach(item -> {
+            productIds.add(Long.valueOf(item.getProductId()));
+            quantities.add(item.getQuantity());
+        });
 
         inventoryCommonService.decreaseInventory(
             productIds,
