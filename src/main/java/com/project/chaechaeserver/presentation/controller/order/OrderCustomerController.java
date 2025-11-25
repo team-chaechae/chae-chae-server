@@ -2,7 +2,6 @@ package com.project.chaechaeserver.presentation.controller.order;
 
 import com.project.chaechaeserver.application.global.dto.ResDTO;
 import com.project.chaechaeserver.application.response.order.ResCreateOrderCustomerPostDTO;
-import com.project.chaechaeserver.application.service.order.order_customer.OrderCustomerDbDirectService;
 import com.project.chaechaeserver.application.service.order.order_customer.OrderCustomerService;
 import com.project.chaechaeserver.presentation.controller.order.docs.OrderCustomerControllerSwagger;
 import com.project.chaechaeserver.presentation.request.order.ReqOrderCustomerPostCreateDTO;
@@ -26,10 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderCustomerController implements OrderCustomerControllerSwagger {
 
     private final OrderCustomerService orderCustomerService;
-    private final OrderCustomerDbDirectService orderCustomerDbDirectService;
 
     @Override
-
     @PostMapping
     public ResponseEntity<ResDTO<ResCreateOrderCustomerPostDTO>> createOrder(
         @Valid @RequestBody ReqOrderCustomerPostCreateDTO request) {
@@ -84,30 +81,6 @@ public class OrderCustomerController implements OrderCustomerControllerSwagger {
                 .message("주문이 완료되었습니다")
                 .build(),
             HttpStatus.OK
-        );
-    }
-
-    /**
-     * DB 직접 사용 주문 생성 (성능 비교용)
-     * Redis 캐싱 없이 Pessimistic Lock으로 재고 차감
-     */
-    @PostMapping("/db-direct")
-    public ResponseEntity<ResDTO<ResCreateOrderCustomerPostDTO>> createOrderWithDbDirect(
-        @Valid @RequestBody ReqOrderCustomerPostCreateDTO request) {
-
-        log.info("[DB 직접] 고객 주문 생성 요청 - 고객ID: {}, 상품 수: {}",
-            request.getOrder().getCustomerId(),
-            request.getOrder().getOrderItems().size());
-
-        ResCreateOrderCustomerPostDTO response = orderCustomerDbDirectService.createOrderWithDbDirect(request);
-
-        return new ResponseEntity<>(
-            ResDTO.<ResCreateOrderCustomerPostDTO>builder()
-                .code(HttpStatus.CREATED.value())
-                .message("주문이 성공적으로 생성되었습니다 (DB 직접 방식)")
-                .data(response)
-                .build(),
-            HttpStatus.CREATED
         );
     }
 }
