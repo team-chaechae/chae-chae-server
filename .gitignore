@@ -44,3 +44,9 @@ out/
 ### VS Code ###
 .vscode/
 /msa/.env.gateway
+/monolithic/src/env.backend
+/monolithic/env.backend
+/monolithic/env.redis
+/monolithic/src/env.redis
+/monolithic/src/env.mysql
+/monolithic/src/test/java/com/project/chaechaeserver/inventory/WriteBackConsistencyTest.java.disabled
