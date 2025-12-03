@@ -1,0 +1,78 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Spring Boot Services
+  - job_name: 'eureka-server'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8761']
+
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+
+  - job_name: 'user-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8081']
+
+  - job_name: 'product-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8082']
+
+  - job_name: 'inventory-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8083']
+
+  - job_name: 'order-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8084']
+
+  - job_name: 'chatbot-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8085']
+
+  # MySQL Exporters (per service database)
+  - job_name: 'mysql-user'
+    static_configs:
+      - targets: ['mysql-exporter-user:9104']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'mysql-product'
+    static_configs:
+      - targets: ['mysql-exporter-product:9104']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'mysql-inventory'
+    static_configs:
+      - targets: ['mysql-exporter-inventory:9104']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'mysql-order'
+    static_configs:
+      - targets: ['mysql-exporter-order:9104']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'mysql-chatbot'
+    static_configs:
+      - targets: ['mysql-exporter-chatbot:9104']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 5s
+    metrics_path: /metrics
