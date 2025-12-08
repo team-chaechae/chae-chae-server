@@ -9,6 +9,13 @@ spring:
     gateway:
       server:
         webflux:
+          httpclient:
+            pool:
+              type: elastic
+              max-connections: 500
+              acquire-timeout: 10000
+            connect-timeout: 5000
+            response-timeout: 30s
           routes:
             - id: user-service
               uri: lb://user-service
@@ -29,6 +36,11 @@ spring:
               uri: lb://order-service
               predicates:
                 - Path=/api/orders/**
+
+            - id: sales-service
+              uri: lb://order-service
+              predicates:
+                - Path=/api/sales/**
 
             - id: chatbot-service
               uri: lb://chatbot-service
@@ -57,10 +69,12 @@ management:
       show-details: always
 
 logging:
+  file:
+    name: logs/gateway.log
   level:
+    root: INFO
     com.project.apigateway: INFO
-    com.project.apigateway.filter: INFO
-    com.project.apigateway.util: INFO
+    org.springframework.cloud.gateway: INFO
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}

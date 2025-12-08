@@ -3,14 +3,17 @@ package com.project.inventoryservice.application.service;
 import com.project.inventoryservice.application.global.exception.BadRequestException;
 import com.project.inventoryservice.application.global.exception.EntityNotFoundException;
 import com.project.inventoryservice.domain.model.InventoryEntity;
+import com.project.inventoryservice.domain.model.StockEntity;
 import com.project.inventoryservice.domain.model.constraint.InventoryChangeType;
 import com.project.inventoryservice.domain.repository.InventoryRepository;
+import com.project.inventoryservice.domain.repository.StockRepository;
 import com.project.inventoryservice.infrastructure.client.ProductClient;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,8 @@ public class InventoryCommonService {
 
     private final ProductClient productClient;
     private final InventoryRepository inventoryRepository;
+    private final StockRepository stockRepository;
+    private final StockCacheService stockCacheService;
 
     /**
      * 상품 ID 유효성 검증 (MSA - Product Service 호출)
@@ -161,8 +166,13 @@ public class InventoryCommonService {
         // 1. 상품 존재 여부 검증
         validateProductIds(productIds);
 
-        // 2. 현재 재고 조회
-        Map<Long, Integer> currentStockMap = inventoryRepository.getCurrentStockMap(productIds);
+        // 2. 현재 재고 조회 (stock 테이블에서 O(n) 조회)
+        List<StockEntity> stocks = stockRepository.findByProductIdIn(productIds);
+        Map<Long, Integer> currentStockMap = stocks.stream()
+            .collect(Collectors.toMap(
+                StockEntity::getProductId,
+                StockEntity::getQuantity
+            ));
 
         // 3. 재고 부족 검증
         validateStockAvailability(productIds, quantities, currentStockMap);
@@ -171,6 +181,23 @@ public class InventoryCommonService {
         List<InventoryEntity> decreaseHistories = createDecreaseHistories(productIds, quantities, changeType);
 
         // 5. 히스토리 저장
-        return inventoryRepository.saveAll(decreaseHistories);
+        List<InventoryEntity> savedHistories = inventoryRepository.saveAll(decreaseHistories);
+
+        // 6. stock 테이블 업데이트 + Redis 캐시 갱신
+        for (int i = 0; i < productIds.size(); i++) {
+            Long productId = productIds.get(i);
+            Integer amount = quantities.get(i);
+
+            // stock 테이블 업데이트
+            stockRepository.decreaseStock(productId, Math.abs(amount));
+
+            // 현재 재고 조회 후 Redis 캐시 갱신
+            int currentStock = stockRepository.findByProductId(productId)
+                .map(StockEntity::getQuantity)
+                .orElse(0);
+            stockCacheService.updateStockCache(productId, currentStock);
+        }
+
+        return savedHistories;
     }
 }

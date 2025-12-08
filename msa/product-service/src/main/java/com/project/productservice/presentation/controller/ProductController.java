@@ -97,4 +97,12 @@ public class ProductController {
     public ResponseEntity<com.project.productservice.application.response.internal.ProductInternalDTO> getProductForInternal(@PathVariable Long productId) {
         return ResponseEntity.ok(productsService.getProductForInternal(productId));
     }
+
+    /**
+     * 내부 서비스용 상품 정보 배치 조회 API (order-service에서 호출)
+     */
+    @PostMapping("/internal/batch")
+    public ResponseEntity<java.util.Map<Long, com.project.productservice.application.response.internal.ProductInternalDTO>> getProductsForInternal(@RequestBody List<Long> productIds) {
+        return ResponseEntity.ok(productsService.getProductsForInternal(productIds));
+    }
 }

@@ -54,8 +54,12 @@ dependencies {
     // H2 (for testing)
     testRuntimeOnly 'com.h2database:h2'
 
-    // Redis
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Redis - Redisson
+    implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
+
+    // Cache (L1: Caffeine, L2: Redis)
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
 
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
@@ -74,6 +78,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.awaitility:awaitility:4.2.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

@@ -40,6 +40,7 @@ public class SecurityConfig {
                         // 인증 없이 접근 가능
                         .pathMatchers("/api/users/auth/**").permitAll()
                         .pathMatchers("/api/users/signup").permitAll()
+                        .pathMatchers("/api/users/customers/signup").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
@@ -52,7 +53,9 @@ public class SecurityConfig {
                         .pathMatchers("/api/products/**").hasAnyRole("EMPLOYEE", "ADMIN")
                         .pathMatchers("/api/orders/**").hasAnyRole("EMPLOYEE", "ADMIN")
 
-                        // CUSTOMER, EMPLOYEE, ADMIN 모두 접근 가능
+                        // CUSTOMER, EMPLOYEE, ADMIN 모두 접근 가능 (판매/주문, 챗봇, 고객정보)
+                        .pathMatchers("/api/users/customers/me").hasAnyRole("CUSTOMER", "EMPLOYEE", "ADMIN")
+                        .pathMatchers("/api/sales/**").hasAnyRole("CUSTOMER", "EMPLOYEE", "ADMIN")
                         .pathMatchers("/api/chatbot/**").hasAnyRole("CUSTOMER", "EMPLOYEE", "ADMIN")
 
                         // 그 외 인증된 사용자

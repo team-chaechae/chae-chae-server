@@ -1,6 +1,8 @@
 package com.project.orderservice.application.global.exception;
 
+import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -60,6 +62,38 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
                 ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, errorMessage.toString().trim()),
                 ErrorCode.INVALID_INPUT_VALUE.getHttpStatus()
+        );
+    }
+
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ErrorResponse> handleFeignException(FeignException e) {
+        log.error("FeignException: status={}, message={}", e.status(), e.getMessage());
+
+        HttpStatus status;
+        String message;
+
+        switch (e.status()) {
+            case 404 -> {
+                status = HttpStatus.NOT_FOUND;
+                message = "요청한 리소스를 찾을 수 없습니다.";
+            }
+            case 400 -> {
+                status = HttpStatus.BAD_REQUEST;
+                message = "잘못된 요청입니다.";
+            }
+            case 503, -1 -> {
+                status = HttpStatus.SERVICE_UNAVAILABLE;
+                message = "서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+            }
+            default -> {
+                status = HttpStatus.INTERNAL_SERVER_ERROR;
+                message = "외부 서비스 호출 중 오류가 발생했습니다.";
+            }
+        }
+
+        return new ResponseEntity<>(
+                ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, message),
+                status
         );
     }
 

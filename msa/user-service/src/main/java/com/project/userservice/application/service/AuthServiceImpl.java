@@ -2,7 +2,9 @@ package com.project.userservice.application.service;
 
 import com.project.userservice.application.global.exception.BadRequestException;
 import com.project.userservice.application.response.ResAuthLoginDTO;
+import com.project.userservice.domain.model.ExternalUserEntity;
 import com.project.userservice.domain.model.InternalUserEntity;
+import com.project.userservice.domain.repository.ExternalUserRepository;
 import com.project.userservice.domain.repository.InternalUserRepository;
 import com.project.userservice.infrastructure.util.JwtUtil;
 import com.project.userservice.presentation.request.ReqAuthPostLoginDTO;
@@ -12,13 +14,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
-    private final InternalUserRepository userRepository;
+    private final InternalUserRepository internalUserRepository;
+    private final ExternalUserRepository externalUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final TokenBlacklistService tokenBlacklistService;
@@ -28,22 +33,45 @@ public class AuthServiceImpl implements AuthService {
         String email = request.getUser().getEmail();
         String password = request.getUser().getPassword();
 
-        // 사용자 조회
-        InternalUserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException("이메일 또는 비밀번호가 올바르지 않습니다."));
+        // 1. 내부 사용자(직원) 먼저 조회
+        Optional<InternalUserEntity> internalUser = internalUserRepository.findByEmail(email);
+        if (internalUser.isPresent()) {
+            return loginAsInternalUser(internalUser.get(), password);
+        }
 
-        // 비밀번호 검증
+        // 2. 외부 사용자(고객) 조회
+        Optional<ExternalUserEntity> externalUser = externalUserRepository.findByEmail(email);
+        if (externalUser.isPresent()) {
+            return loginAsExternalUser(externalUser.get(), password);
+        }
+
+        throw new BadRequestException("이메일 또는 비밀번호가 올바르지 않습니다.");
+    }
+
+    private ResAuthLoginDTO loginAsInternalUser(InternalUserEntity user, String password) {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BadRequestException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        // JWT 토큰 발급
-        String accessToken = jwtUtil.generateAccessToken(email, user.getRole().name());
-        String refreshToken = jwtUtil.generateRefreshToken(email);
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
 
-        log.info("사용자 '{}' 로그인 성공, JWT 발급 완료", email);
+        log.info("내부 사용자 '{}' 로그인 성공 (role: {})", user.getEmail(), user.getRole());
 
-        return ResAuthLoginDTO.of(accessToken, refreshToken, email, user.getRole(), user.getRealName());
+        return ResAuthLoginDTO.of(accessToken, refreshToken, user.getEmail(), user.getRole(), user.getRealName());
+    }
+
+    private ResAuthLoginDTO loginAsExternalUser(ExternalUserEntity user, String password) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadRequestException("이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+
+        log.info("고객 '{}' 로그인 성공 (role: {})", user.getEmail(), user.getRole());
+
+        return ResAuthLoginDTO.of(accessToken, refreshToken, user.getEmail(), user.getRole(), user.getName());
     }
 
     @Override
@@ -76,15 +104,24 @@ public class AuthServiceImpl implements AuthService {
 
         String email = jwtUtil.getSubject(refreshToken);
 
-        // 사용자 조회
-        InternalUserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다."));
+        // 1. 내부 사용자(직원) 먼저 조회
+        Optional<InternalUserEntity> internalUser = internalUserRepository.findByEmail(email);
+        if (internalUser.isPresent()) {
+            InternalUserEntity user = internalUser.get();
+            String newAccessToken = jwtUtil.generateAccessToken(email, user.getRole().name());
+            log.info("내부 사용자 '{}' 토큰 갱신 완료", email);
+            return ResAuthLoginDTO.of(newAccessToken, refreshToken, email, user.getRole(), user.getRealName());
+        }
 
-        // 새로운 Access Token 발급
-        String newAccessToken = jwtUtil.generateAccessToken(email, user.getRole().name());
+        // 2. 외부 사용자(고객) 조회
+        Optional<ExternalUserEntity> externalUser = externalUserRepository.findByEmail(email);
+        if (externalUser.isPresent()) {
+            ExternalUserEntity user = externalUser.get();
+            String newAccessToken = jwtUtil.generateAccessToken(email, user.getRole().name());
+            log.info("고객 '{}' 토큰 갱신 완료", email);
+            return ResAuthLoginDTO.of(newAccessToken, refreshToken, email, user.getRole(), user.getName());
+        }
 
-        log.info("사용자 '{}' 토큰 갱신 완료", email);
-
-        return ResAuthLoginDTO.of(newAccessToken, refreshToken, email, user.getRole(), user.getRealName());
+        throw new BadRequestException("사용자를 찾을 수 없습니다.");
     }
 }

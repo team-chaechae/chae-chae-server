@@ -26,6 +26,7 @@ public class ProductsServiceImpl implements ProductsService {
 
     private final ProductsRepository productsRepository;
     private final InventoryClient inventoryClient;
+    private final ProductCacheService productCacheService;
 
     @Override
     @Transactional
@@ -97,8 +98,22 @@ public class ProductsServiceImpl implements ProductsService {
     @Override
     @Transactional(readOnly = true)
     public com.project.productservice.application.response.internal.ProductInternalDTO getProductForInternal(Long productId) {
-        ProductEntity product = productsRepository.findProductByProductId(productId);
-        return com.project.productservice.application.response.internal.ProductInternalDTO.from(product);
+        // 경량 DTO 캐시 조회 (productId, name, category, price만)
+        log.debug("Product internal cache lookup for productId: {}", productId);
+        return productCacheService.getProductInternal(productId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, com.project.productservice.application.response.internal.ProductInternalDTO> getProductsForInternal(List<Long> productIds) {
+        log.debug("Product internal batch cache lookup for {} products", productIds.size());
+
+        // 배치로 조회 (각각 캐시 적용)
+        Map<Long, com.project.productservice.application.response.internal.ProductInternalDTO> result = new java.util.HashMap<>();
+        for (Long productId : productIds) {
+            result.put(productId, productCacheService.getProductInternal(productId));
+        }
+        return result;
     }
 
 }

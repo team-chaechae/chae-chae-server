@@ -33,4 +33,11 @@ public interface ProductsService {
      * @return 상품 정보 DTO
      */
     com.project.productservice.application.response.internal.ProductInternalDTO getProductForInternal(Long productId);
+
+    /**
+     * 내부 서비스용 상품 정보 배치 조회 (order-service에서 호출)
+     * @param productIds 상품 ID 목록
+     * @return 상품 ID -> 상품 정보 Map
+     */
+    java.util.Map<Long, com.project.productservice.application.response.internal.ProductInternalDTO> getProductsForInternal(List<Long> productIds);
 }
