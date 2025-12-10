@@ -9,9 +9,7 @@ import org.redisson.api.*;
 import org.redisson.client.codec.IntegerCodec;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 재고 캐시 서비스 (Redisson 기반)
@@ -23,8 +21,6 @@ import java.util.concurrent.TimeUnit;
 public class StockCacheService {
 
     private static final String STOCK_CACHE_PREFIX = "stock:";
-    private static final Duration CACHE_TTL = Duration.ofMinutes(10);
-    private static final long CACHE_TTL_SECONDS = CACHE_TTL.getSeconds();
 
     private final RedissonClient redissonClient;
     private final StockRepository stockRepository;
@@ -33,15 +29,11 @@ public class StockCacheService {
     private static final String DECREASE_STOCK_SCRIPT =
             "local current = tonumber(redis.call('GET', KEYS[1]) or 0) " +
             "if current < tonumber(ARGV[1]) then return -1 end " +
-            "local newStock = redis.call('DECRBY', KEYS[1], ARGV[1]) " +
-            "redis.call('EXPIRE', KEYS[1], ARGV[2]) " +
-            "return newStock";
+            "return redis.call('DECRBY', KEYS[1], ARGV[1])";
 
     // Lua 스크립트 (재고 증가)
     private static final String INCREASE_STOCK_SCRIPT =
-            "local newStock = redis.call('INCRBY', KEYS[1], ARGV[1]) " +
-            "redis.call('EXPIRE', KEYS[1], ARGV[2]) " +
-            "return newStock";
+            "return redis.call('INCRBY', KEYS[1], ARGV[1])";
 
     /**
      * 앱 시작 시 DB의 재고 데이터를 Redis에 로드
@@ -56,7 +48,7 @@ public class StockCacheService {
         for (StockEntity stock : allStocks) {
             String cacheKey = STOCK_CACHE_PREFIX + stock.getProductId();
             batch.getBucket(cacheKey, IntegerCodec.INSTANCE)
-                    .setAsync(stock.getQuantity(), CACHE_TTL_SECONDS, TimeUnit.SECONDS);
+                    .setAsync(stock.getQuantity());
         }
 
         batch.execute();
@@ -133,7 +125,7 @@ public class StockCacheService {
                 INCREASE_STOCK_SCRIPT,
                 RScript.ReturnType.INTEGER,
                 Collections.singletonList(cacheKey),
-                amount, CACHE_TTL_SECONDS
+                amount
         );
 
         if (newStock == null) {
@@ -147,7 +139,7 @@ public class StockCacheService {
 
     /**
      * 재고 감소 (Lua Script - Atomic 연산)
-     * 재고 체크 + DECRBY + EXPIRE를 1번의 Redis 호출로 처리
+     * 재고 체크 + DECRBY를 1번의 Redis 호출로 처리
      */
     public Integer decreaseStock(Long productId, Integer amount) {
         String cacheKey = STOCK_CACHE_PREFIX + productId;
@@ -158,7 +150,7 @@ public class StockCacheService {
                 DECREASE_STOCK_SCRIPT,
                 RScript.ReturnType.INTEGER,
                 Collections.singletonList(cacheKey),
-                amount, CACHE_TTL_SECONDS
+                amount
         );
 
         if (newStock == null) {
@@ -181,7 +173,7 @@ public class StockCacheService {
     public void updateStockCache(Long productId, Integer newStock) {
         String cacheKey = STOCK_CACHE_PREFIX + productId;
         RBucket<Integer> bucket = redissonClient.getBucket(cacheKey, IntegerCodec.INSTANCE);
-        bucket.set(newStock, CACHE_TTL_SECONDS, TimeUnit.SECONDS);
+        bucket.set(newStock);
         log.info("[캐시 갱신] Redis 재고 - 상품ID: {}, 재고: {}", productId, newStock);
     }
 

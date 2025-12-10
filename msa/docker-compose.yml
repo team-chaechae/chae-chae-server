@@ -365,15 +365,14 @@ services:
     networks:
       - msa-network
 
-  # Inventory Service
+  # Inventory Service (스케일링 가능)
   inventory-service:
     build:
       context: ./inventory-service
       dockerfile: Dockerfile
-    container_name: msa-inventory-service
     profiles: [app]
-    ports:
-      - "8183:8083"
+    deploy:
+      replicas: 3
     depends_on:
       - eureka-server
       - mysql-inventory
@@ -390,15 +389,14 @@ services:
     networks:
       - msa-network
 
-  # Order Service
+  # Order Service (스케일링 가능)
   order-service:
     build:
       context: ./order-service
       dockerfile: Dockerfile
-    container_name: msa-order-service
     profiles: [app]
-    ports:
-      - "8184:8084"
+    deploy:
+      replicas: 2
     depends_on:
       - eureka-server
       - mysql-order

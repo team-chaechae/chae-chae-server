@@ -1,8 +1,8 @@
 package com.project.inventoryservice.application.global.aspect;
 
 import com.project.inventoryservice.application.global.annotation.BatchProcessing;
-import com.project.inventoryservice.presentation.request.bulk.ReqBulkCreateInventoryDTO;
-import com.project.inventoryservice.presentation.request.bulk.ReqUpdateInventoryDTO;
+import com.project.inventoryservice.presentation.request.warehouse.ReqWarehouseReceiveDTO;
+import com.project.inventoryservice.presentation.request.warehouse.ReqWarehouseModifyDTO;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -80,10 +80,10 @@ public class BatchProcessingAspect {
             if (arg instanceof List<?> list) {
                 return list.size();
             }
-            if (arg instanceof ReqBulkCreateInventoryDTO dto) {
+            if (arg instanceof ReqWarehouseReceiveDTO dto) {
                 return dto.getInventory() != null ? dto.getInventory().size() : 0;
             }
-            if (arg instanceof ReqUpdateInventoryDTO dto) {
+            if (arg instanceof ReqWarehouseModifyDTO dto) {
                 return dto.getInventory() != null ? dto.getInventory().size() : 0;
             }
         }
