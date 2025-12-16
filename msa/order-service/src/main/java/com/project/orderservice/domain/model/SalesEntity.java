@@ -53,16 +53,24 @@ public class SalesEntity {
     private String failureReason;
 
     protected SalesEntity() {
-        this.status = SalesStatus.PENDING;
+        this.status = SalesStatus.PENDING;  // PENDING으로 시작 (Saga 패턴)
     }
 
     /**
      * 정적 팩토리 메서드 - Sales와 Items를 함께 생성
+     * 주문 생성 시 PENDING 상태로 시작 (Saga로 처리 후 COMPLETED)
      */
     public static SalesEntity createWithItems(List<SalesItemEntity> items) {
         SalesEntity sales = new SalesEntity();
         items.forEach(sales::addItem);
         return sales;
+    }
+
+    /**
+     * 처리 중 상태로 변경
+     */
+    public void markProcessing() {
+        this.status = SalesStatus.PROCESSING;
     }
 
     /**
@@ -80,6 +88,10 @@ public class SalesEntity {
     public void cancel(String reason) {
         this.status = SalesStatus.CANCELLED;
         this.failureReason = reason;
+    }
+
+    public boolean isCompleted() {
+        return this.status == SalesStatus.COMPLETED;
     }
 
     public int getTotalPrice() {

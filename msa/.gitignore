@@ -1,0 +1,6 @@
+# Logs (keep directory structure, ignore contents)
+**/logs/*.log
+**/logs/*.log.*
+
+# Override file (dev only)
+docker-compose.override.yml

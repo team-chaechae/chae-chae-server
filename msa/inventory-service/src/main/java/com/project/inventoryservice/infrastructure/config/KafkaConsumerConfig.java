@@ -1,7 +1,7 @@
 package com.project.inventoryservice.infrastructure.config;
 
 import com.project.inventoryservice.infrastructure.kafka.InventoryEvent;
-import com.project.inventoryservice.infrastructure.kafka.dto.InventoryReserveEvent;
+import com.project.inventoryservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.ProductCreatedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -19,6 +19,8 @@ import java.util.Map;
 
 /**
  * Kafka Consumer 설정
+ * - inventory-events: 재고 변경 이벤트 (DB 동기화용)
+ * - product-created: 상품 생성 이벤트
  */
 @EnableKafka
 @Configuration
@@ -79,33 +81,6 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
-    // Saga - 재고 차감 요청 Consumer
-    @Bean
-    public ConsumerFactory<String, InventoryReserveEvent> inventoryReserveConsumerFactory() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "inventory-saga-group");
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-        JsonDeserializer<InventoryReserveEvent> deserializer = new JsonDeserializer<>(InventoryReserveEvent.class);
-        deserializer.setRemoveTypeHeaders(false);
-        deserializer.addTrustedPackages("*");
-        deserializer.setUseTypeMapperForKey(true);
-
-        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), deserializer);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryReserveEvent> inventoryReserveListenerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, InventoryReserveEvent> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(inventoryReserveConsumerFactory());
-        factory.setConcurrency(3);
-        return factory;
-    }
-
     // Product Created 이벤트 Consumer
     @Bean
     public ConsumerFactory<String, ProductCreatedEvent> productCreatedConsumerFactory() {
@@ -130,6 +105,33 @@ public class KafkaConsumerConfig {
             new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(productCreatedConsumerFactory());
         factory.setConcurrency(1);  // 상품 생성은 빈도가 낮으므로 1개로 충분
+        return factory;
+    }
+
+    // Payment Completed 이벤트 Consumer (Order Service에서 발행)
+    @Bean
+    public ConsumerFactory<String, PaymentCompletedEvent> paymentCompletedConsumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "inventory-payment-group");
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        JsonDeserializer<PaymentCompletedEvent> deserializer = new JsonDeserializer<>(PaymentCompletedEvent.class);
+        deserializer.setRemoveTypeHeaders(false);
+        deserializer.addTrustedPackages("com.project.*");
+        deserializer.setUseTypeMapperForKey(true);
+
+        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), deserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, PaymentCompletedEvent> paymentCompletedListenerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, PaymentCompletedEvent> factory =
+            new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(paymentCompletedConsumerFactory());
+        factory.setConcurrency(3);
         return factory;
     }
 }

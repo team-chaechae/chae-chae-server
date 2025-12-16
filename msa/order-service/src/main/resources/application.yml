@@ -21,7 +21,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:6380}
 
   kafka:
     bootstrap-servers: localhost:9093
@@ -51,6 +51,13 @@ management:
     web:
       exposure:
         include: "*"
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
 
 logging:
   file:
@@ -62,3 +69,23 @@ logging:
     com.zaxxer.hikari.pool.HikariPool: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE
+
+loki:
+  url: http://${LOKI_HOST:localhost}:${LOKI_PORT:3100}/loki/api/v1/push
+
+# Saga 설정
+saga:
+  timeout:
+    inventory-reserve: 30       # 재고 예약 타임아웃 (초)
+    payment-process: 120        # 결제 처리 타임아웃 (초)
+    inventory-confirm: 30       # 재고 확정 타임아웃 (초)
+    total-minutes: 15           # Saga 전체 타임아웃 (분)
+    reservation-ttl-minutes: 15 # Redis 예약 TTL (분)
+    compensation-minutes: 5     # 보상 트랜잭션 타임아웃 (분)
+  retry:
+    max-count: 3                # 최대 재시도 횟수
+    interval-ms: 1000           # 재시도 간격 (밀리초)
+  scheduler:
+    timeout-check-interval-ms: 60000   # 타임아웃 체크 주기 (1분)
+    stuck-check-interval-ms: 300000    # 멈춤 체크 주기 (5분)
+    recovery-interval-ms: 300000       # 복구 주기 (5분)

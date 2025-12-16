@@ -1,6 +1,7 @@
 package com.project.orderservice.infrastructure.client;
 
 import com.project.orderservice.infrastructure.client.dto.InventoryChangeDTO;
+import com.project.orderservice.infrastructure.client.dto.StockReservationDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,4 +23,22 @@ public interface InventoryClient {
      */
     @PostMapping("/api/inventory/sales/decrease")
     InventoryChangeDTO.Response decreaseInventory(@RequestBody InventoryChangeDTO.Request request);
+
+    /**
+     * 재고 예약 (주문 생성 시)
+     */
+    @PostMapping("/api/inventory/reservation/reserve")
+    StockReservationDTO.ReserveResponse reserveStock(@RequestBody StockReservationDTO.ReserveRequest request);
+
+    /**
+     * 재고 확정 (결제 완료 후)
+     */
+    @PostMapping("/api/inventory/reservation/confirm")
+    StockReservationDTO.ConfirmResponse confirmStock(@RequestBody StockReservationDTO.ConfirmRequest request);
+
+    /**
+     * 재고 예약 해제 (결제 실패 시 롤백)
+     */
+    @PostMapping("/api/inventory/reservation/release")
+    StockReservationDTO.ReleaseResponse releaseStock(@RequestBody StockReservationDTO.ReleaseRequest request);
 }

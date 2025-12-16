@@ -72,6 +72,17 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
+    // OpenTelemetry
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.10.0-alpha'
+
+    // Logstash Logback Encoder (JSON logging for Promtail)
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+
+    // Loki4j (direct push to Loki)
+    implementation 'com.github.loki4j:loki-logback-appender:1.5.1'
+
     // Web, Lombok, Valid
     implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'

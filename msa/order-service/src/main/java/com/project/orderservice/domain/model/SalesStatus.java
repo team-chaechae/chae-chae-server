@@ -5,7 +5,8 @@ package com.project.orderservice.domain.model;
  * Saga 패턴에서 주문 처리 상태를 추적
  */
 public enum SalesStatus {
-    PENDING,    // 주문 접수, 재고 차감 대기 중
-    COMPLETED,  // 재고 차감 완료, 주문 성공
-    CANCELLED   // 재고 부족 등으로 주문 실패
+    PENDING,     // 주문 접수, Saga 시작 대기 중
+    PROCESSING,  // Saga 진행 중 (재고 예약/결제 처리 중)
+    COMPLETED,   // Saga 완료, 주문 성공
+    CANCELLED    // Saga 실패, 주문 취소
 }
