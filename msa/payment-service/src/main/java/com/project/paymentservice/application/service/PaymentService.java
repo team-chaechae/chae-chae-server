@@ -1,10 +1,15 @@
 package com.project.paymentservice.application.service;
 
+import com.project.paymentservice.application.event.PaymentCompletedInternalEvent;
 import com.project.paymentservice.application.response.ResPaymentDTO;
+
+import java.util.List;
 
 public interface PaymentService {
 
     ResPaymentDTO processPayment(String orderId, Long salesId, Integer amount);
+
+    ResPaymentDTO processPayment(String orderId, Long salesId, Integer amount, List<PaymentCompletedInternalEvent.OrderItem> items);
 
     ResPaymentDTO getPaymentBySalesId(Long salesId);
 

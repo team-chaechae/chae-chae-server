@@ -24,6 +24,13 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public ResPaymentDTO processPayment(String orderId, Long salesId, Integer amount) {
+        return processPayment(orderId, salesId, amount, null);
+    }
+
+    @Override
+    @Transactional
+    public ResPaymentDTO processPayment(String orderId, Long salesId, Integer amount,
+            java.util.List<PaymentCompletedInternalEvent.OrderItem> items) {
         // 중복 결제 방지 - 기존 결제가 있는지 확인
         Optional<PaymentEntity> existingPayment = paymentRepository.findBySalesId(salesId);
         if (existingPayment.isPresent()) {
@@ -43,7 +50,7 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("[Payment] 결제 완료 - orderId: {}, salesId: {}, amount: {}", orderId, salesId, amount);
 
         // 결제 완료 이벤트 발행 (Outbox 패턴 - 트랜잭션과 함께 기록)
-        eventPublisher.publishEvent(PaymentCompletedInternalEvent.of(orderId, salesId, amount));
+        eventPublisher.publishEvent(PaymentCompletedInternalEvent.of(orderId, salesId, amount, items));
 
         return ResPaymentDTO.from(savedPayment);
     }

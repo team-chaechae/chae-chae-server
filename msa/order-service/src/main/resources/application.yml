@@ -1,13 +1,25 @@
 spring:
   application:
     name: order-service
+  cloud:
+    openfeign:
+      micrometer:
+        enabled: true
+      httpclient:
+        hc5:
+          enabled: true
+          pool-reuse-policy: fifo
+          pool-concurrency-policy: strict
+        max-connections: 200
+        max-connections-per-route: 50
   datasource:
     url: jdbc:mysql://localhost:3310/order_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 16
+      maximum-pool-size: 20
+      minimum-idle: 10
 
   jpa:
     hibernate:
@@ -20,8 +32,12 @@ spring:
     open-in-view: false
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6380}
+      sentinel:
+        master: mymaster
+        nodes:
+          - ${REDIS_SENTINEL_1:localhost}:${REDIS_SENTINEL_PORT_1:26379}
+          - ${REDIS_SENTINEL_2:localhost}:${REDIS_SENTINEL_PORT_2:26380}
+          - ${REDIS_SENTINEL_3:localhost}:${REDIS_SENTINEL_PORT_3:26381}
 
   kafka:
     bootstrap-servers: localhost:9093
@@ -89,3 +105,18 @@ saga:
     timeout-check-interval-ms: 60000   # 타임아웃 체크 주기 (1분)
     stuck-check-interval-ms: 300000    # 멈춤 체크 주기 (5분)
     recovery-interval-ms: 300000       # 복구 주기 (5분)
+
+# Kafka 백프레셔 설정
+kafka:
+  backpressure:
+    max-permits: 50
+    core-pool-size: 5
+    max-pool-size: 20
+    acquire-timeout-ms: 30000
+
+# Slack 알림 설정
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL:}
+  alert:
+    enabled: ${SLACK_ALERT_ENABLED:false}

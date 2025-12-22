@@ -9,8 +9,8 @@ import com.project.orderservice.domain.model.ProductInfo;
 import com.project.orderservice.domain.model.constraint.StatusType;
 import com.project.orderservice.domain.repository.OrderRepository;
 import com.project.orderservice.domain.service.OrderDomainService;
-import com.project.orderservice.infrastructure.client.InventoryClient;
 import com.project.orderservice.infrastructure.client.ProductClient;
+import com.project.orderservice.infrastructure.client.InventoryFeignClient;
 import com.project.orderservice.infrastructure.client.dto.InventoryChangeDTO;
 import com.project.orderservice.infrastructure.client.dto.ProductDTO;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderDomainService orderDomainService;
     private final ProductClient productClient;
-    private final InventoryClient inventoryClient;
+    private final InventoryFeignClient inventoryFeignClient;
 
     @Override
     @Transactional
@@ -96,7 +96,7 @@ public class OrderServiceImpl implements OrderService {
         // PENDING → APPROVED: 재고 차감
         if (currentStatus == StatusType.PENDING && newStatus == StatusType.APPROVED) {
             log.info("[주문 승인] 재고 차감 요청 - productId: {}, quantity: {}", productId, quantity);
-            InventoryChangeDTO.Response response = inventoryClient.decreaseInventory(
+            InventoryChangeDTO.Response response = inventoryFeignClient.decreaseInventory(
                     InventoryChangeDTO.Request.of(productId, quantity)
             );
             log.info("[주문 승인] 재고 차감 완료 - success: {}", response.isSuccess());
@@ -105,7 +105,7 @@ public class OrderServiceImpl implements OrderService {
         // APPROVED → CANCELLED: 재고 복구
         if (currentStatus == StatusType.APPROVED && newStatus == StatusType.CANCELLED) {
             log.info("[주문 취소] 재고 복구 요청 - productId: {}, quantity: {}", productId, quantity);
-            InventoryChangeDTO.Response response = inventoryClient.increaseInventory(
+            InventoryChangeDTO.Response response = inventoryFeignClient.increaseInventory(
                     InventoryChangeDTO.Request.of(productId, quantity)
             );
             log.info("[주문 취소] 재고 복구 완료 - success: {}", response.isSuccess());

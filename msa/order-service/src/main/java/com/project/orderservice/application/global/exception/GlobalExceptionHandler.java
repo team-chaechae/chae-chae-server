@@ -1,6 +1,9 @@
 package com.project.orderservice.application.global.exception;
 
+import com.project.orderservice.infrastructure.alert.SlackAlertService;
 import feign.FeignException;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +14,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final SlackAlertService slackAlertService;
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
@@ -98,8 +104,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+    public ResponseEntity<ErrorResponse> handleException(Exception e, HttpServletRequest request) {
         log.error("Exception: {}", e.getMessage(), e);
+
+        String endpoint = request.getMethod() + " " + request.getRequestURI();
+        slackAlertService.sendApiErrorAlert(endpoint, e.getMessage(), e);
+
         return new ResponseEntity<>(
                 ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR),
                 ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus()

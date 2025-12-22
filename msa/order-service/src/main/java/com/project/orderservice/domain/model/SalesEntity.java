@@ -23,6 +23,9 @@ public class SalesEntity {
     @Column(name = "sales_id")
     private Long id;
 
+    @Column(name = "order_id", nullable = false, unique = true)
+    private String orderId;
+
     @OneToMany(mappedBy = "sales", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SalesItemEntity> items = new ArrayList<>();
 
@@ -58,10 +61,11 @@ public class SalesEntity {
 
     /**
      * 정적 팩토리 메서드 - Sales와 Items를 함께 생성
-     * 주문 생성 시 PENDING 상태로 시작 (Saga로 처리 후 COMPLETED)
+     * 주문 생성 시 PENDING 상태로 시작 (비동기 처리 후 COMPLETED)
      */
-    public static SalesEntity createWithItems(List<SalesItemEntity> items) {
+    public static SalesEntity createWithItems(String orderId, List<SalesItemEntity> items) {
         SalesEntity sales = new SalesEntity();
+        sales.orderId = orderId;
         items.forEach(sales::addItem);
         return sales;
     }
@@ -92,6 +96,10 @@ public class SalesEntity {
 
     public boolean isCompleted() {
         return this.status == SalesStatus.COMPLETED;
+    }
+
+    public boolean isCancelled() {
+        return this.status == SalesStatus.CANCELLED;
     }
 
     public int getTotalPrice() {

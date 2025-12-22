@@ -17,7 +17,10 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "payment")
+@Table(name = "payment", indexes = {
+        @Index(name = "idx_payment_sales_id", columnList = "sales_id"),
+        @Index(name = "idx_payment_order_id", columnList = "order_id")
+})
 public class PaymentEntity {
 
     @Id
@@ -66,13 +69,13 @@ public class PaymentEntity {
                 .salesId(salesId)
                 .amount(amount)
                 .build();
-        payment.addHistory(PaymentStatus.PENDING, "결제 요청 생성");
+        // 히스토리는 최종 상태에서만 기록 (INSERT 최소화)
         return payment;
     }
 
     public void process() {
         this.status = PaymentStatus.PROCESSING;
-        addHistory(PaymentStatus.PROCESSING, "결제 처리 시작");
+        // 히스토리는 최종 상태에서만 기록
     }
 
     public void complete() {

@@ -36,5 +36,7 @@ public class ReqReleaseStockDTO {
     public static class ReleaseItem {
         @NotNull(message = "productId는 필수입니다")
         private Long productId;
+
+        private Integer quantity;  // 선차감 구조에서 복구할 수량
     }
 }

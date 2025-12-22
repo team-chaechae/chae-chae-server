@@ -85,13 +85,99 @@ services:
     networks:
       - msa-network
 
-  # Redis
-  redis:
+  # Redis Master
+  redis-master:
     image: redis:7-alpine
-    container_name: msa-redis
+    container_name: msa-redis-master
     profiles: [infra]
+    command: redis-server --appendonly yes
     ports:
-      - "6380:6379"
+      - "6379:6379"
+    networks:
+      - msa-network
+
+  # Redis Slave
+  redis-slave:
+    image: redis:7-alpine
+    container_name: msa-redis-slave
+    profiles: [infra]
+    command: redis-server --appendonly yes --replicaof redis-master 6379
+    depends_on:
+      - redis-master
+    ports:
+      - "6381:6379"
+    networks:
+      - msa-network
+
+  # Redis Sentinel 1
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: msa-redis-sentinel-1
+    profiles: [infra]
+    command: >
+      sh -c "sleep 5 &&
+             echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
+             echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26379' >> /etc/sentinel.conf &&
+             echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
+             echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
+             echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
+             echo 'sentinel parallel-syncs mymaster 1' >> /etc/sentinel.conf &&
+             redis-sentinel /etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave
+    ports:
+      - "26379:26379"
+    networks:
+      - msa-network
+
+  # Redis Sentinel 2
+  redis-sentinel-2:
+    image: redis:7-alpine
+    container_name: msa-redis-sentinel-2
+    profiles: [infra]
+    command: >
+      sh -c "sleep 5 &&
+             echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
+             echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26380' >> /etc/sentinel.conf &&
+             echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
+             echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
+             echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
+             echo 'sentinel parallel-syncs mymaster 1' >> /etc/sentinel.conf &&
+             redis-sentinel /etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave
+    ports:
+      - "26380:26379"
+    networks:
+      - msa-network
+
+  # Redis Sentinel 3
+  redis-sentinel-3:
+    image: redis:7-alpine
+    container_name: msa-redis-sentinel-3
+    profiles: [infra]
+    command: >
+      sh -c "sleep 5 &&
+             echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
+             echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26381' >> /etc/sentinel.conf &&
+             echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
+             echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
+             echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
+             echo 'sentinel parallel-syncs mymaster 1' >> /etc/sentinel.conf &&
+             redis-sentinel /etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave
+    ports:
+      - "26381:26379"
     networks:
       - msa-network
 
@@ -235,11 +321,11 @@ services:
     container_name: msa-redis-exporter
     profiles: [monitoring]
     environment:
-      REDIS_ADDR: "redis:6379"
+      REDIS_ADDR: "redis-master:6379"
     ports:
       - "9122:9121"
     depends_on:
-      - redis
+      - redis-master
     networks:
       - msa-network
 
@@ -407,13 +493,20 @@ services:
       - "8180:8080"
     depends_on:
       - eureka-server
-      - redis
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
     env_file:
       - env.secret.key
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
     networks:
@@ -431,15 +524,22 @@ services:
     depends_on:
       - eureka-server
       - mysql-user
-      - redis
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
     env_file:
       - env.mysql.user
       - env.secret.key
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-user:3306/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
     networks:
@@ -457,14 +557,21 @@ services:
     depends_on:
       - eureka-server
       - mysql-product
-      - redis
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
     env_file:
       - env.mysql.product
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-product:3306/product_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
     networks:
@@ -481,15 +588,22 @@ services:
     depends_on:
       - eureka-server
       - mysql-inventory
-      - redis
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
       - kafka
     env_file:
       - env.mysql.inventory
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-inventory:3306/inventory_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
@@ -510,15 +624,22 @@ services:
     depends_on:
       - eureka-server
       - mysql-order
-      - redis
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
       - kafka
     env_file:
       - env.mysql.order
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-order:3306/order_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318

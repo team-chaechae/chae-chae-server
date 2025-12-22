@@ -38,6 +38,16 @@ public class InventoryEvent {
     private String changeType;
 
     /**
+     * 주문 ID (선차감 구조에서 결제 확정 시 업데이트용)
+     */
+    private String orderId;
+
+    /**
+     * 상태 (RESERVED, CONFIRMED, CANCELLED)
+     */
+    private String status;
+
+    /**
      * 이벤트 발생 시각
      */
     private LocalDateTime occurredAt;

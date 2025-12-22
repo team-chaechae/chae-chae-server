@@ -24,4 +24,14 @@ public interface SalesService {
             LocalDate exactDate,
             List<String> sortList
     );
+
+    /**
+     * 결제 완료 처리 - 주문 상태를 COMPLETED로 변경
+     */
+    void completeSales(Long salesId, String orderId);
+
+    /**
+     * 주문 취소 처리 - 환불로 인한 주문 취소
+     */
+    void cancelSales(Long salesId, String orderId, String reason);
 }
