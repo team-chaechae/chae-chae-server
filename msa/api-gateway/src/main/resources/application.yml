@@ -7,45 +7,36 @@ spring:
       port: ${REDIS_PORT}
   cloud:
     gateway:
-      server:
-        webflux:
-          httpclient:
-            pool:
-              type: elastic
-              max-connections: 500
-              acquire-timeout: 10000
-            connect-timeout: 5000
-            response-timeout: 30s
-          routes:
-            - id: user-service
-              uri: lb://user-service
-              predicates:
-                - Path=/api/users/**
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
 
-            - id: product-service
-              uri: lb://product-service
-              predicates:
-                - Path=/api/products/**
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
 
-            - id: inventory-service
-              uri: lb://inventory-service
-              predicates:
-                - Path=/api/inventory/**
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/inventory/**
 
-            - id: order-service
-              uri: lb://order-service
-              predicates:
-                - Path=/api/orders/**
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
 
-            - id: sales-service
-              uri: lb://order-service
-              predicates:
-                - Path=/api/sales/**
+        - id: sales-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/sales/**
 
-            - id: chatbot-service
-              uri: lb://chatbot-service
-              predicates:
-                - Path=/api/chatbot/**
+        - id: chatbot-service
+          uri: lb://chatbot-service
+          predicates:
+            - Path=/api/chatbot/**
 
 server:
   port: 8080

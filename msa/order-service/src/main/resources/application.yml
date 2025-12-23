@@ -6,6 +6,8 @@ spring:
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 16
 
   jpa:
     hibernate:
@@ -15,6 +17,7 @@ spring:
       hibernate:
         format_sql: false
         dialect: org.hibernate.dialect.MySQL8Dialect
+    open-in-view: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -55,3 +58,7 @@ logging:
   level:
     root: INFO
     com.project.orderservice: INFO
+    com.zaxxer.hikari: DEBUG
+    com.zaxxer.hikari.pool.HikariPool: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE

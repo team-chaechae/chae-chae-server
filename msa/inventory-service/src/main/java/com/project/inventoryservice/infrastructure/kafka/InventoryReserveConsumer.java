@@ -5,6 +5,7 @@ import com.project.inventoryservice.infrastructure.kafka.dto.InventoryReserveEve
 import com.project.inventoryservice.infrastructure.kafka.dto.InventoryResultEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -15,10 +16,16 @@ import java.util.UUID;
 
 /**
  * 재고 차감 요청 Consumer (Order → Inventory)
+ *
+ * 현재 동기 HTTP 방식으로 전환되어 비활성화됨
+ * 활성화: application.yml에 kafka.saga.enabled=true 설정
+ *
+ * TODO: 결제 서비스 추가 시 Saga 패턴 재활성화 검토
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "kafka.saga.enabled", havingValue = "true", matchIfMissing = false)
 public class InventoryReserveConsumer {
 
     private final StockCacheService stockCacheService;

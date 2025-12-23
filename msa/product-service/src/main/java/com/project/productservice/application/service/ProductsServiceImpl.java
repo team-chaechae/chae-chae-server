@@ -1,5 +1,6 @@
 package com.project.productservice.application.service;
 
+import com.project.productservice.application.event.ProductCreatedInternalEvent;
 import com.project.productservice.application.global.exception.EntityAlreadyExistException;
 import com.project.productservice.application.response.ResCreateProductPostDTO;
 import com.project.productservice.application.response.ResGetProductWithOrderStatus;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class ProductsServiceImpl implements ProductsService {
     private final ProductsRepository productsRepository;
     private final InventoryClient inventoryClient;
     private final ProductCacheService productCacheService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -37,6 +40,7 @@ public class ProductsServiceImpl implements ProductsService {
             throw new EntityAlreadyExistException("이미 존재하는 상품명입니다: " + dto.getProduct().getName());
         }
 
+        // 1. 도메인 로직
         ProductEntity savedProduct = productsRepository.save(
             ProductEntity.createProducts(
                 dto.getProduct().getName(),
@@ -45,9 +49,16 @@ public class ProductsServiceImpl implements ProductsService {
             )
         );
 
-        return ResCreateProductPostDTO.from(
-        savedProduct
+        // 2. 이벤트 발행 (BEFORE_COMMIT: Outbox 저장, AFTER_COMMIT: Kafka 발행)
+        ProductCreatedInternalEvent event = ProductCreatedInternalEvent.of(
+                savedProduct.getId(),
+                savedProduct.getName(),
+                savedProduct.getCategory(),
+                savedProduct.getPrice()
         );
+        eventPublisher.publishEvent(event);
+
+        return ResCreateProductPostDTO.from(savedProduct);
     }
 
     @Override
@@ -56,7 +67,6 @@ public class ProductsServiceImpl implements ProductsService {
 
         ProductEntity product = productsRepository.findProductByProductId(productId);
 
-        // MSA: inventory-service에서 재고 조회
         Integer currentStock = inventoryClient.getCurrentStock(productId);
 
         return ResGetProductWithOrderStatus.from(product, currentStock);

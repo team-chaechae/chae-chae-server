@@ -14,12 +14,12 @@ public interface InventoryClient {
     /**
      * 재고 증가 (주문 취소 시 재고 복구)
      */
-    @PostMapping("/api/inventory/internal/increase")
+    @PostMapping("/api/inventory/sales/increase")
     InventoryChangeDTO.Response increaseInventory(@RequestBody InventoryChangeDTO.Request request);
 
     /**
      * 재고 차감 (주문 승인 시 재고 감소)
      */
-    @PostMapping("/api/inventory/internal/decrease")
+    @PostMapping("/api/inventory/sales/decrease")
     InventoryChangeDTO.Response decreaseInventory(@RequestBody InventoryChangeDTO.Request request);
 }

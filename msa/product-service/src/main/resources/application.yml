@@ -23,8 +23,18 @@ spring:
     caffeine:
       spec: maximumSize=500,expireAfterWrite=600s
 
+  kafka:
+    bootstrap-servers: localhost:9093
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 server:
   port: 8082
+  shutdown: graceful
+
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
 
 eureka:
   client:
@@ -47,3 +57,13 @@ logging:
   level:
     root: INFO
     com.project.productservice: INFO
+
+# Outbox Message Relay 설정 (29CM 방식)
+outbox:
+  relay:
+    interval-ms: 60000           # 재발행 체크 간격 (1분)
+    threshold-minutes: 10        # 이 시간 이상 지난 미처리 메시지만 재발행
+    batch-size: 100              # 한 번에 처리할 메시지 수
+    max-retries: 3               # 최대 재시도 횟수
+    cleanup-days: 7              # 처리 완료 메시지 보관 기간
+    cleanup-cron: "0 0 3 * * ?"  # 정리 작업 스케줄 (매일 새벽 3시)
