@@ -1,11 +1,13 @@
 package com.project.inventoryservice.infrastructure.config;
 
 import com.project.inventoryservice.infrastructure.kafka.InventoryEvent;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -47,5 +49,29 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, InventoryEvent> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    // Generic Object Producer (for various event types)
+    @Bean
+    public ProducerFactory<String, Object> objectProducerFactory() {
+        Map<String, Object> config = commonProducerConfig();
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(config);
+    }
+
+    @Bean
+    public KafkaTemplate<String, Object> objectKafkaTemplate() {
+        return new KafkaTemplate<>(objectProducerFactory());
+    }
+
+    // ==================== Topic 설정 ====================
+
+    @Bean
+    public NewTopic inventoryConfirmedTopic() {
+        return TopicBuilder.name("inventory-confirmed")
+                .partitions(3)
+                .replicas(1)
+                .config("retention.ms", "604800000")  // 7일 보관
+                .build();
     }
 }

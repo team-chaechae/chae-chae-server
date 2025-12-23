@@ -16,8 +16,12 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      sentinel:
+        master: mymaster
+        nodes:
+          - ${REDIS_SENTINEL_1:localhost}:${REDIS_SENTINEL_PORT_1:26379}
+          - ${REDIS_SENTINEL_2:localhost}:${REDIS_SENTINEL_PORT_2:26380}
+          - ${REDIS_SENTINEL_3:localhost}:${REDIS_SENTINEL_PORT_3:26381}
   cache:
     type: caffeine
     caffeine:

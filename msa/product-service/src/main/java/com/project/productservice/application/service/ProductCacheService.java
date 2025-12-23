@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 2레벨 캐싱을 통한 상품 조회 최적화
  *
  * L1 (Caffeine): 1분 TTL, 로컬 메모리
- * L2 (Redis): 10분 TTL, 분산 캐시 + Gzip 압축
+ * L2 (Redis): 10분 TTL, 분산 캐시
  */
 @Slf4j
 @Service

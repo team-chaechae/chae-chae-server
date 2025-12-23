@@ -17,7 +17,12 @@ public enum InventoryChangeType {
 
 
     //히스토리 상태
-    DLQ_FAILURE("히스토리 저장 실패");
+    DLQ_FAILURE("히스토리 저장 실패"),
+
+    // 이벤트 소싱 상태
+    CONFIRM("재고 확정"),
+    CANCEL("재고 취소");
+
     private final String displayName;
 
     InventoryChangeType(String displayName) {

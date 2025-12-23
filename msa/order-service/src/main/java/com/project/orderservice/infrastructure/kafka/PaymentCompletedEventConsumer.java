@@ -1,59 +1,63 @@
 package com.project.orderservice.infrastructure.kafka;
 
-import com.project.orderservice.domain.model.SalesEntity;
-import com.project.orderservice.domain.repository.SalesRepository;
+import com.project.orderservice.application.service.SalesService;
+import com.project.orderservice.infrastructure.alert.SlackAlertService;
+import com.project.orderservice.infrastructure.kafka.backpressure.BlockingThreadPoolExecutor;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.RejectedExecutionException;
+
+/**
+ * 결제 완료 이벤트 Consumer
+ *
+ * payment-completed 이벤트 수신 → 주문 상태 COMPLETED로 변경
+ * 비즈니스 로직은 SalesService에 위임
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PaymentCompletedEventConsumer {
 
-    private final SalesRepository salesRepository;
+    private static final String TOPIC = "payment-completed";
+
+    private final SalesService salesService;
+    private final BlockingThreadPoolExecutor kafkaBackpressureExecutor;
+    private final SlackAlertService slackAlertService;
 
     @KafkaListener(
-            topics = "payment-completed",
+            topics = TOPIC,
             groupId = "order-payment-group",
-            containerFactory = "paymentCompletedListenerFactory"
+            containerFactory = "paymentCompletedListenerFactory",
+            concurrency = "3"
     )
-    @Transactional
     public void handlePaymentCompleted(PaymentCompletedEvent event, Acknowledgment ack) {
         String orderId = event.getOrderId();
         Long salesId = event.getSalesId();
 
-        log.info("[결제 완료 이벤트 수신] orderId: {}, salesId: {}, totalAmount: {}",
-                orderId, salesId, event.getTotalAmount());
-
         try {
-            SalesEntity sales = salesRepository.findSalesBySalesId(salesId);
+            kafkaBackpressureExecutor.execute(() -> {
+                try {
+                    log.info("[결제 완료 이벤트 수신] orderId: {}, salesId: {}, totalAmount: {}",
+                            orderId, salesId, event.getTotalAmount());
 
-            // 이미 완료된 주문이면 스킵 (멱등성)
-            if (sales.isCompleted()) {
-                log.info("[주문 상태 변경 스킵 - 이미 완료] orderId: {}, salesId: {}", orderId, salesId);
-                ack.acknowledge();
-                return;
-            }
-
-            // 주문 상태를 COMPLETED로 변경
-            sales.complete();
-
-            log.info("[주문 상태 완료] orderId: {}, salesId: {}, status: {}",
-                    orderId, salesId, sales.getStatus());
-
-            // 처리 성공 시 ACK
-            ack.acknowledge();
-
-        } catch (Exception e) {
-            log.error("[주문 상태 변경 실패] orderId: {}, salesId: {}, error: {}",
-                    orderId, salesId, e.getMessage(), e);
-            // ACK하지 않으면 재시도됨
-            throw e;
+                    salesService.completeSales(salesId, orderId);
+                    ack.acknowledge();
+                } catch (Exception e) {
+                    log.error("[주문 상태 변경 실패] orderId: {}, salesId: {}, error: {}",
+                            orderId, salesId, e.getMessage());
+                    slackAlertService.sendKafkaErrorAlert(TOPIC,
+                            "주문 상태 변경 실패 - orderId: " + orderId + ", salesId: " + salesId, e);
+                    ack.acknowledge();  // 중복 처리 방지
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            log.warn("[백프레셔] 작업 거부 - orderId: {}, error: {}", orderId, e.getMessage());
+            // ack 안함 → 재처리
         }
     }
 }

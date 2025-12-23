@@ -6,6 +6,9 @@ spring:
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
   jpa:
     hibernate:
       ddl-auto: update
@@ -18,8 +21,12 @@ spring:
         bootstrap-mode: deferred
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6380}
+      sentinel:
+        master: mymaster
+        nodes:
+          - ${REDIS_SENTINEL_1:localhost}:${REDIS_SENTINEL_PORT_1:26379}
+          - ${REDIS_SENTINEL_2:localhost}:${REDIS_SENTINEL_PORT_2:26380}
+          - ${REDIS_SENTINEL_3:localhost}:${REDIS_SENTINEL_PORT_3:26381}
       repositories:
         enabled: false
 
@@ -75,3 +82,11 @@ loki:
 saga:
   timeout:
     reservation-ttl-seconds: 900  # Redis 예약 TTL (15분 = 900초)
+
+# Kafka 백프레셔 설정 (BlockingThreadPoolExecutor)
+kafka:
+  backpressure:
+    max-permits: 50           # Semaphore 동시 처리 최대 수 (Runtime 조절 가능)
+    core-pool-size: 5         # ThreadPool 코어 스레드 수
+    max-pool-size: 20         # ThreadPool 최대 스레드 수
+    acquire-timeout-ms: 30000 # Semaphore acquire 타임아웃 (30초)

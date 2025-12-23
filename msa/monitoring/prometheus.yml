@@ -60,6 +60,14 @@ scrape_configs:
       - target_label: instance
         replacement: 'chatbot-service'
 
+  - job_name: 'payment-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8086']
+    relabel_configs:
+      - target_label: instance
+        replacement: 'payment-service'
+
   # MySQL Exporters (per service database)
   - job_name: 'mysql-user'
     static_configs:
@@ -105,6 +113,15 @@ scrape_configs:
     relabel_configs:
       - target_label: instance
         replacement: 'mysql-chatbot'
+
+  - job_name: 'mysql-payment'
+    static_configs:
+      - targets: ['mysql-exporter-payment:9104']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    relabel_configs:
+      - target_label: instance
+        replacement: 'mysql-payment'
 
   # Redis Exporter
   - job_name: 'redis'

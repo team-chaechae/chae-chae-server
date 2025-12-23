@@ -1,27 +1,38 @@
 package com.project.paymentservice.infrastructure.config;
 
+import com.project.paymentservice.infrastructure.config.kafka.KafkaConsumerHelper;
+import com.project.paymentservice.infrastructure.kafka.dto.InventoryFailedEvent;
+import com.project.paymentservice.infrastructure.kafka.dto.OrderCreatedEvent;
+import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
-import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.CommonErrorHandler;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@EnableKafka
 @Configuration
+@RequiredArgsConstructor
 public class KafkaConfig {
 
     public static final String TOPIC_PAYMENT_COMPLETED = "payment-completed";
     public static final String TOPIC_PAYMENT_REFUNDED = "payment-refunded";
 
+    private final CommonErrorHandler kafkaErrorHandler;
+
     @Value("${spring.kafka.bootstrap-servers:localhost:9093}")
     private String bootstrapServers;
+
+    // ==================== Producer 설정 ====================
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
@@ -54,5 +65,43 @@ public class KafkaConfig {
                 .partitions(3)
                 .replicas(1)
                 .build();
+    }
+
+    // ==================== Consumer 설정 (ErrorHandlingDeserializer 적용) ====================
+
+    @Bean
+    public ConsumerFactory<String, OrderCreatedEvent> orderCreatedConsumerFactory() {
+        return KafkaConsumerHelper.createConsumerFactory(
+                bootstrapServers,
+                "payment-order-group",
+                OrderCreatedEvent.class
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> orderCreatedListenerFactory() {
+        return KafkaConsumerHelper.createListenerFactory(
+                orderCreatedConsumerFactory(),
+                kafkaErrorHandler,
+                3
+        );
+    }
+
+    @Bean
+    public ConsumerFactory<String, InventoryFailedEvent> inventoryFailedConsumerFactory() {
+        return KafkaConsumerHelper.createConsumerFactory(
+                bootstrapServers,
+                "payment-inventory-failed-group",
+                InventoryFailedEvent.class
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, InventoryFailedEvent> inventoryFailedListenerFactory() {
+        return KafkaConsumerHelper.createListenerFactory(
+                inventoryFailedConsumerFactory(),
+                kafkaErrorHandler,
+                3
+        );
     }
 }

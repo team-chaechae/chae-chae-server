@@ -31,6 +31,7 @@ dependencies {
     // Spring Cloud
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'io.github.openfeign:feign-hc5'  // HTTP 커넥션 풀링
 
     // JPA
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -72,6 +73,9 @@ dependencies {
     implementation 'io.micrometer:micrometer-tracing-bridge-otel'
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
     implementation 'io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.10.0-alpha'
+
+    // Feign Micrometer (트레이싱 전파)
+    implementation 'io.github.openfeign:feign-micrometer'
 
     // Logstash Logback Encoder (JSON logging for Promtail)
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'

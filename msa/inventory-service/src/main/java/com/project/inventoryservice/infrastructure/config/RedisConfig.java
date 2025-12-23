@@ -21,7 +21,7 @@ public class RedisConfig {
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
 
-    @Value("${spring.data.redis.port:6380}")
+    @Value("${spring.data.redis.port:6379}")
     private int redisPort;
 
     @Bean(destroyMethod = "shutdown")
@@ -34,7 +34,11 @@ public class RedisConfig {
         Config config = new Config();
         config.setCodec(new org.redisson.codec.TypedJsonJacksonCodec(Object.class, objectMapper));
         config.useSingleServer()
-                .setAddress("redis://" + redisHost + ":" + redisPort);
+                .setAddress("redis://" + redisHost + ":" + redisPort)
+                .setConnectionPoolSize(64)
+                .setConnectionMinimumIdleSize(24)
+                .setRetryAttempts(3)
+                .setRetryInterval(1500);
 
         return Redisson.create(config);
     }
