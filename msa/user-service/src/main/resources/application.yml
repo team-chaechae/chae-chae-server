@@ -45,13 +45,20 @@ management:
       access: unrestricted
     health:
       show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
 
 logging:
+  file:
+    name: logs/user.log
   level:
+    root: INFO
     com.project.userservice: INFO
     com.project.userservice.infrastructure.filter: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql: TRACE
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}

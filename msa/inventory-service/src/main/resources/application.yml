@@ -19,7 +19,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:6380}
       repositories:
         enabled: false
 
@@ -51,6 +51,13 @@ management:
     web:
       exposure:
         include: "*"
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
 
 logging:
   file:
@@ -60,3 +67,11 @@ logging:
     com.project.inventoryservice: INFO
     com.zaxxer.hikari: DEBUG
     com.zaxxer.hikari.pool.HikariPool: DEBUG
+
+loki:
+  url: http://${LOKI_HOST:localhost}:${LOKI_PORT:3100}/loki/api/v1/push
+
+# Saga 설정
+saga:
+  timeout:
+    reservation-ttl-seconds: 900  # Redis 예약 TTL (15분 = 900초)

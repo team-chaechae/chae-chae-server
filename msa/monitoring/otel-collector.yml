@@ -1,0 +1,51 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+  # 리소스 속성 추가
+  resource:
+    attributes:
+      - key: service.namespace
+        value: msa-chae-chae
+        action: upsert
+
+exporters:
+  # Tempo로 트레이스 전송
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Prometheus로 메트릭 전송
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: otel
+
+  # 디버그용 로깅
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, resource]
+      exporters: [otlp/tempo]
+
+    metrics:
+      receivers: [otlp]
+      processors: [batch, resource]
+      exporters: [prometheus]
+
+  telemetry:
+    logs:
+      level: info

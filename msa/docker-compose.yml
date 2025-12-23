@@ -72,6 +72,19 @@ services:
     networks:
       - msa-network
 
+  mysql-payment:
+    image: mysql:8.0
+    container_name: msa-mysql-payment
+    profiles: [infra]
+    env_file:
+      - .env.payment
+    ports:
+      - "3312:3306"
+    volumes:
+      - msa-mysql-payment-data:/var/lib/mysql
+    networks:
+      - msa-network
+
   # Redis
   redis:
     image: redis:7-alpine
@@ -203,6 +216,19 @@ services:
     networks:
       - msa-network
 
+  mysql-exporter-payment:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: msa-mysql-exporter-payment
+    profiles: [monitoring]
+    environment:
+      DATA_SOURCE_NAME: "root:password@(mysql-payment:3306)/payment_db"
+    ports:
+      - "9109:9104"
+    depends_on:
+      - mysql-payment
+    networks:
+      - msa-network
+
   # Redis Exporter
   redis-exporter:
     image: oliver006/redis_exporter:latest
@@ -245,6 +271,13 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
     networks:
       - msa-network
 
@@ -259,6 +292,72 @@ services:
       - "9308:9308"
     depends_on:
       - kafka
+    networks:
+      - msa-network
+
+  # Tempo (Distributed Tracing)
+  tempo:
+    image: grafana/tempo:latest
+    container_name: msa-tempo
+    profiles: [monitoring]
+    command: ["-config.file=/etc/tempo.yml"]
+    user: "0:0"
+    volumes:
+      - ./monitoring/tempo.yml:/etc/tempo.yml
+      - msa-tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo API
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - msa-network
+
+  # Loki (Log Aggregation)
+  loki:
+    image: grafana/loki:latest
+    container_name: msa-loki
+    profiles: [monitoring]
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./monitoring/loki.yml:/etc/loki/loki.yml
+      - msa-loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - msa-network
+
+  # Promtail (Log Collection Agent)
+  # Production: Docker 볼륨에서 로그 수집
+  # Dev: docker-compose.override.yml에서 로컬 경로로 오버라이드
+  promtail:
+    image: grafana/promtail:latest
+    container_name: msa-promtail
+    profiles: [monitoring]
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    volumes:
+      - ./monitoring/promtail.yml:/etc/promtail/promtail.yml
+      - msa-logs:/logs:ro  # Production: Docker 볼륨
+    depends_on:
+      - loki
+    networks:
+      - msa-network
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: msa-otel-collector
+    profiles: [monitoring]
+    command: ["--config=/etc/otel-collector.yml"]
+    volumes:
+      - ./monitoring/otel-collector.yml:/etc/otel-collector.yml
+    ports:
+      - "4327:4317"   # OTLP gRPC (앱에서 보내는 포트)
+      - "4328:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics (collector 자체)
+      - "8889:8889"   # Prometheus exporter (앱 메트릭)
+    depends_on:
+      - tempo
+      - loki
     networks:
       - msa-network
 
@@ -315,6 +414,8 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
     networks:
       - msa-network
 
@@ -339,6 +440,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-user:3306/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
     networks:
       - msa-network
 
@@ -362,6 +465,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-product:3306/product_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
     networks:
       - msa-network
 
@@ -386,6 +491,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
     networks:
       - msa-network
 
@@ -410,6 +520,37 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
+    networks:
+      - msa-network
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    profiles: [app]
+    deploy:
+      replicas: 2
+    depends_on:
+      - eureka-server
+      - mysql-payment
+      - kafka
+    env_file:
+      - .env.payment
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-payment:3306/payment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
     networks:
       - msa-network
 
@@ -440,6 +581,10 @@ volumes:
   msa-mysql-inventory-data:
   msa-mysql-order-data:
   msa-mysql-chatbot-data:
+  msa-mysql-payment-data:
+  msa-tempo-data:
+  msa-loki-data:
+  msa-logs:
 
 networks:
   msa-network:

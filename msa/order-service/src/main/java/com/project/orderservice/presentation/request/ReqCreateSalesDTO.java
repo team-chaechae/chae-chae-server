@@ -17,6 +17,9 @@ import java.util.List;
 @AllArgsConstructor
 public class ReqCreateSalesDTO {
 
+    @NotNull(message = "사용자 ID는 필수입니다.")
+    private Long userId;
+
     @NotEmpty(message = "판매 항목은 최소 1개 이상이어야 합니다.")
     @Valid
     private List<SalesItem> salesItems;

@@ -1,0 +1,19 @@
+# Dev 환경 오버라이드 설정
+# 로컬에서 Spring 실행 시 로그 수집용
+#
+# 사용: docker-compose --profile monitoring up -d
+# (docker-compose.override.yml은 자동으로 병합됨)
+#
+# Production에서는 이 파일 없이 실행:
+# docker-compose -f docker-compose.yml --profile monitoring --profile app up -d
+
+name: msa-chae-chae
+
+services:
+  promtail:
+    volumes:
+      - ./monitoring/promtail.yml:/etc/promtail/promtail.yml
+      # Dev: 로컬 서비스 디렉토리의 logs 폴더
+      - ./order-service/logs:/logs/order:ro
+      - ./inventory-service/logs:/logs/inventory:ro
+      - ./payment-service/logs:/logs/payment:ro
