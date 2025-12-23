@@ -13,6 +13,8 @@ monolithic/src/main/resources/application-key.yml
 ### MSA ###
 msa/env.*
 msa/.env.*
+logs/
+*.log
 ### STS ###
 .apt_generated
 .classpath
@@ -50,3 +52,4 @@ out/
 /monolithic/src/env.redis
 /monolithic/src/env.mysql
 /monolithic/src/test/java/com/project/chaechaeserver/inventory/WriteBackConsistencyTest.java.disabled
+/msa/docs/troubleshooting-kafka-saga-performance.md

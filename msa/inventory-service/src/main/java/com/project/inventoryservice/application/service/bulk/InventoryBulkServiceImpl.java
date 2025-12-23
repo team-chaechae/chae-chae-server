@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InventoryBulkServiceImpl implements InventoryBulkService {
 
-    private static final int BATCH_SIZE = 100;
+    private static final int BATCH_SIZE = 1000;
 
     private final InventoryRepository inventoryRepository;
     private final InventoryBatchProcessor batchProcessor;

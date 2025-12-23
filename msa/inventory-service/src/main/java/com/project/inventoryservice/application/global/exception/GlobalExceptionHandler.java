@@ -56,7 +56,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
-        log.error("Exception: {}", e.getMessage(), e);
+        log.error("[500 에러 발생] 예외 타입: {}, 메시지: {}", e.getClass().getName(), e.getMessage());
+        log.error("[500 에러 스택트레이스]", e);
         return new ResponseEntity<>(
                 ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR),
                 ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus()

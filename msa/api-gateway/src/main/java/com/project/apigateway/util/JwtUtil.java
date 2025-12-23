@@ -26,11 +26,13 @@ public class JwtUtil {
     private String secretKey;
 
     private Key key;
+    private JwtParser jwtParser;
 
     @PostConstruct
     public void init() {
         byte[] bytes = Base64.getDecoder().decode(secretKey);
         key = Keys.hmacShaKeyFor(bytes);
+        jwtParser = Jwts.parserBuilder().setSigningKey(key).build();
     }
 
     /**
@@ -48,7 +50,7 @@ public class JwtUtil {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            jwtParser.parseClaimsJws(token);
             return true;
         } catch (SecurityException | MalformedJwtException e) {
             log.error("[JWT 검증] 유효하지 않은 JWT 서명입니다");
@@ -67,13 +69,11 @@ public class JwtUtil {
      */
     public Claims getClaims(String token) {
         try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            return jwtParser.parseClaimsJws(token).getBody();
         } catch (ExpiredJwtException e) {
             return e.getClaims();
+        } catch (Exception e) {
+            return null;
         }
     }
 

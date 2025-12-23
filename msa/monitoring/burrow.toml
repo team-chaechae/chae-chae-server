@@ -1,0 +1,34 @@
+[general]
+pidfile = "/tmp/burrow.pid"
+stdout-logfile = "/tmp/burrow.out"
+access-control-allow-origin = "*"
+
+[logging]
+level = "info"
+
+[zookeeper]
+servers = ["zookeeper:2181"]
+timeout = 6
+root-path = "/burrow"
+
+[client-profile.kafka-profile]
+kafka-version = "2.0.0"
+client-id = "burrow-client"
+
+[cluster.msa-kafka]
+class-name = "kafka"
+client-profile = "kafka-profile"
+servers = ["kafka:9092"]
+topic-refresh = 60
+offset-refresh = 30
+
+[consumer.msa-kafka]
+class-name = "kafka"
+cluster = "msa-kafka"
+servers = ["kafka:9092"]
+client-profile = "kafka-profile"
+group-denylist = "^(console-consumer-|_).*$"
+start-latest = true
+
+[httpserver.default]
+address = ":8000"

@@ -48,11 +48,16 @@ public class JwtAuthenticationFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        // 토큰 검증
-        if (!jwtUtil.validateToken(token)) {
+        // 토큰 검증 및 Claims 추출 (한 번만 파싱)
+        var claims = jwtUtil.getClaims(token);
+        if (claims == null) {
             log.warn("[Gateway] 유효하지 않은 토큰: {} {}", method, path);
             return chain.filter(exchange);
         }
+
+        // Claims에서 정보 추출 (추가 파싱 없음)
+        String email = claims.getSubject();
+        String role = claims.get(JwtUtil.AUTHORIZATION_KEY, String.class);
 
         // 블랙리스트 확인 후 인증 처리
         return isBlacklisted(token)
@@ -61,10 +66,6 @@ public class JwtAuthenticationFilter implements WebFilter {
                         log.warn("블랙리스트에 등록된 토큰 사용 시도");
                         return chain.filter(exchange);
                     }
-
-                    // 토큰에서 정보 추출
-                    String email = jwtUtil.getSubject(token);
-                    String role = jwtUtil.getRole(token);
 
                     log.info("[Gateway] 인증 성공: user={}, role={}, path={}", email, role, path);
 

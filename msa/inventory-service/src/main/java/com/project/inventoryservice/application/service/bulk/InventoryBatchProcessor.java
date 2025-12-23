@@ -1,9 +1,12 @@
 package com.project.inventoryservice.application.service.bulk;
 
 import com.project.inventoryservice.application.service.InventoryCommonService;
+import com.project.inventoryservice.application.service.StockCacheService;
 import com.project.inventoryservice.domain.model.InventoryEntity;
+import com.project.inventoryservice.domain.model.StockEntity;
 import com.project.inventoryservice.domain.model.constraint.InventoryChangeType;
 import com.project.inventoryservice.domain.repository.InventoryRepository;
+import com.project.inventoryservice.domain.repository.StockRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class InventoryBatchProcessor {
 
     private final InventoryRepository inventoryRepository;
+    private final StockRepository stockRepository;
+    private final StockCacheService stockCacheService;
     private final InventoryCommonService inventoryCommonService;
 
     /**
@@ -55,8 +60,26 @@ public class InventoryBatchProcessor {
             batchIds, batchQuantities, InventoryChangeType.RECEIVE
         );
 
-        // 2. JDBC 벌크 인서트 (히스토리 저장만 수행, Product는 변경 없음)
+        // 2. JDBC 벌크 인서트 (히스토리 저장)
         inventoryRepository.saveAll(inventories);
+
+        // 3. stock 테이블 업데이트 + Redis 캐시 갱신
+        for (int i = 0; i < batchIds.size(); i++) {
+            Long productId = batchIds.get(i);
+            Integer amount = batchQuantities.get(i);
+
+            // stock 테이블 +amount (없으면 생성)
+            int updated = stockRepository.increaseStock(productId, amount);
+            if (updated == 0) {
+                stockRepository.save(new StockEntity(productId, amount));
+            }
+
+            // 현재 재고 조회 후 Redis 캐시 갱신
+            int currentStock = stockRepository.findByProductId(productId)
+                .map(StockEntity::getQuantity)
+                .orElse(0);
+            stockCacheService.updateStockCache(productId, currentStock);
+        }
 
         return inventories;
     }
@@ -85,8 +108,34 @@ public class InventoryBatchProcessor {
             batchIds, batchChangeAmounts, InventoryChangeType.ADJUST
         );
 
-        // 2. JDBC 벌크 인서트 (히스토리 저장만 수행, Product는 변경 없음)
+        // 2. JDBC 벌크 인서트 (히스토리 저장)
         inventoryRepository.saveAll(modifyHistories);
+
+        // 3. stock 테이블 업데이트 + Redis 캐시 갱신
+        for (int i = 0; i < batchIds.size(); i++) {
+            Long productId = batchIds.get(i);
+            Integer changeAmount = batchChangeAmounts.get(i);
+
+            if (changeAmount > 0) {
+                // 증가
+                int updated = stockRepository.increaseStock(productId, changeAmount);
+                if (updated == 0) {
+                    stockRepository.save(new StockEntity(productId, changeAmount));
+                }
+            } else if (changeAmount < 0) {
+                // 감소
+                stockRepository.decreaseStock(productId, Math.abs(changeAmount));
+            }
+            // changeAmount == 0 이면 아무것도 안함
+
+            // 현재 재고 조회 후 Redis 캐시 갱신
+            if (changeAmount != 0) {
+                int currentStock = stockRepository.findByProductId(productId)
+                    .map(StockEntity::getQuantity)
+                    .orElse(0);
+                stockCacheService.updateStockCache(productId, currentStock);
+            }
+        }
 
         return modifyHistories;
     }

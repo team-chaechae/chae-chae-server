@@ -47,8 +47,8 @@ dependencies {
     // H2 (for testing)
     testRuntimeOnly 'com.h2database:h2'
 
-    // Redis
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Redis - Redisson
+    implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
 
     // Local Cache - Caffeine
     implementation 'org.springframework.boot:spring-boot-starter-cache'

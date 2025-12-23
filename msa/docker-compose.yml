@@ -2,10 +2,15 @@
 name: msa-chae-chae
 
 services:
+  # ============================================
+  # INFRASTRUCTURE SERVICES (profile: infra)
+  # ============================================
+
   # MySQL Databases
   mysql-user:
     image: mysql:8.0
     container_name: msa-mysql-user
+    profiles: [infra]
     env_file:
       - env.mysql.user
     ports:
@@ -18,6 +23,7 @@ services:
   mysql-product:
     image: mysql:8.0
     container_name: msa-mysql-product
+    profiles: [infra]
     env_file:
       - env.mysql.product
     ports:
@@ -30,6 +36,7 @@ services:
   mysql-inventory:
     image: mysql:8.0
     container_name: msa-mysql-inventory
+    profiles: [infra]
     env_file:
       - env.mysql.inventory
     ports:
@@ -42,6 +49,7 @@ services:
   mysql-order:
     image: mysql:8.0
     container_name: msa-mysql-order
+    profiles: [infra]
     env_file:
       - env.mysql.order
     ports:
@@ -54,6 +62,7 @@ services:
   mysql-chatbot:
     image: mysql:8.0
     container_name: msa-mysql-chatbot
+    profiles: [infra]
     env_file:
       - env.mysql.chatbot
     ports:
@@ -67,6 +76,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: msa-redis
+    profiles: [infra]
     ports:
       - "6380:6379"
     networks:
@@ -76,6 +86,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     container_name: msa-zookeeper
+    profiles: [infra]
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -88,24 +99,49 @@ services:
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: msa-kafka
+    profiles: [infra]
     depends_on:
       - zookeeper
     ports:
-      - "9093:9092"
+      - "9093:9093"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     networks:
       - msa-network
 
+  # Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: msa-kafka-ui
+    profiles: [infra]
+    depends_on:
+      - kafka
+    ports:
+      - "8989:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: msa-kafka-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - msa-network
+
+  # ============================================
+  # MONITORING SERVICES (profile: monitoring)
+  # ============================================
+
   # MySQL Exporters
   mysql-exporter-user:
     image: prom/mysqld-exporter:v0.14.0
     container_name: msa-mysql-exporter-user
+    profiles: [monitoring]
     environment:
       DATA_SOURCE_NAME: "root:password@(mysql-user:3306)/user_db"
     ports:
@@ -118,6 +154,7 @@ services:
   mysql-exporter-product:
     image: prom/mysqld-exporter:v0.14.0
     container_name: msa-mysql-exporter-product
+    profiles: [monitoring]
     environment:
       DATA_SOURCE_NAME: "root:password@(mysql-product:3306)/product_db"
     ports:
@@ -130,6 +167,7 @@ services:
   mysql-exporter-inventory:
     image: prom/mysqld-exporter:v0.14.0
     container_name: msa-mysql-exporter-inventory
+    profiles: [monitoring]
     environment:
       DATA_SOURCE_NAME: "root:password@(mysql-inventory:3306)/inventory_db"
     ports:
@@ -142,6 +180,7 @@ services:
   mysql-exporter-order:
     image: prom/mysqld-exporter:v0.14.0
     container_name: msa-mysql-exporter-order
+    profiles: [monitoring]
     environment:
       DATA_SOURCE_NAME: "root:password@(mysql-order:3306)/order_db"
     ports:
@@ -154,6 +193,7 @@ services:
   mysql-exporter-chatbot:
     image: prom/mysqld-exporter:v0.14.0
     container_name: msa-mysql-exporter-chatbot
+    profiles: [monitoring]
     environment:
       DATA_SOURCE_NAME: "root:password@(mysql-chatbot:3306)/chatbot_db"
     ports:
@@ -167,6 +207,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: msa-redis-exporter
+    profiles: [monitoring]
     environment:
       REDIS_ADDR: "redis:6379"
     ports:
@@ -180,6 +221,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: msa-prometheus
+    profiles: [monitoring]
     ports:
       - "9091:9090"
     volumes:
@@ -198,10 +240,199 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: msa-grafana
+    profiles: [monitoring]
     ports:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - msa-network
+
+  # Kafka Exporter (for Prometheus/Grafana)
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: msa-kafka-exporter
+    profiles: [monitoring]
+    command:
+      - --kafka.server=kafka:9092
+    ports:
+      - "9308:9308"
+    depends_on:
+      - kafka
+    networks:
+      - msa-network
+
+  # Burrow (Kafka Consumer Lag Monitoring)
+  # 사용하려면: git clone https://github.com/linkedin/Burrow ./monitoring/burrow-src && docker-compose build burrow
+  burrow:
+    build:
+      context: ./monitoring/burrow-src
+      dockerfile: Dockerfile
+    container_name: msa-burrow
+    profiles: [monitoring]
+    ports:
+      - "8100:8000"
+    volumes:
+      - ./monitoring/burrow.toml:/etc/burrow/burrow.toml
+    command: ["/app/burrow", "--config-dir", "/etc/burrow"]
+    depends_on:
+      - kafka
+      - zookeeper
+    networks:
+      - msa-network
+
+  # ============================================
+  # APPLICATION SERVICES (profile: app)
+  # ============================================
+
+  # Eureka Server (Service Discovery)
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: msa-eureka-server
+    profiles: [app]
+    ports:
+      - "8861:8761"
+    networks:
+      - msa-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: msa-api-gateway
+    profiles: [app]
+    ports:
+      - "8180:8080"
+    depends_on:
+      - eureka-server
+      - redis
+    env_file:
+      - env.secret.key
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - msa-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: msa-user-service
+    profiles: [app]
+    ports:
+      - "8181:8081"
+    depends_on:
+      - eureka-server
+      - mysql-user
+      - redis
+    env_file:
+      - env.mysql.user
+      - env.secret.key
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-user:3306/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - msa-network
+
+  # Product Service
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: msa-product-service
+    profiles: [app]
+    ports:
+      - "8182:8082"
+    depends_on:
+      - eureka-server
+      - mysql-product
+      - redis
+    env_file:
+      - env.mysql.product
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-product:3306/product_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - msa-network
+
+  # Inventory Service
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: msa-inventory-service
+    profiles: [app]
+    ports:
+      - "8183:8083"
+    depends_on:
+      - eureka-server
+      - mysql-inventory
+      - redis
+      - kafka
+    env_file:
+      - env.mysql.inventory
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-inventory:3306/inventory_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - msa-network
+
+  # Order Service
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: msa-order-service
+    profiles: [app]
+    ports:
+      - "8184:8084"
+    depends_on:
+      - eureka-server
+      - mysql-order
+      - redis
+      - kafka
+    env_file:
+      - env.mysql.order
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-order:3306/order_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - msa-network
+
+  # Chatbot Service
+  chatbot-service:
+    build:
+      context: ./chatbot-service
+      dockerfile: Dockerfile
+    container_name: msa-chatbot-service
+    profiles: [app]
+    ports:
+      - "8185:8085"
+    depends_on:
+      - eureka-server
+      - mysql-chatbot
+    env_file:
+      - env.mysql.chatbot
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-chatbot:3306/chatbot_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - CHATBOT_BASE-URL_FAST-API=http://host.docker.internal:8000
     networks:
       - msa-network
 
