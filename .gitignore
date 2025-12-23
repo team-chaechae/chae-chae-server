@@ -5,8 +5,14 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 .DS_Store
-/src/main/resources/application-key.yml
-.env.*
+
+### Monolithic ###
+monolithic/.env.*
+monolithic/src/main/resources/application-key.yml
+
+### MSA ###
+msa/env.*
+msa/.env.*
 ### STS ###
 .apt_generated
 .classpath
@@ -37,3 +43,10 @@ out/
 
 ### VS Code ###
 .vscode/
+/msa/.env.gateway
+/monolithic/src/env.backend
+/monolithic/env.backend
+/monolithic/env.redis
+/monolithic/src/env.redis
+/monolithic/src/env.mysql
+/monolithic/src/test/java/com/project/chaechaeserver/inventory/WriteBackConsistencyTest.java.disabled
