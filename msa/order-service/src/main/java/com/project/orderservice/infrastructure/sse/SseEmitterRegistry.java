@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class SseEmitterRegistry {
 
-    private static final long SSE_TIMEOUT = 5 * 60 * 1000L; // 5분
+    private static final long SSE_TIMEOUT = 60 * 1000L; // 1분
 
     // orderId → SseEmitter 매핑
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
@@ -73,17 +73,6 @@ public class SseEmitterRegistry {
         } finally {
             emitter.complete();
             log.debug("[SSE] 연결 종료 - orderId: {}", orderId);
-        }
-    }
-
-    /**
-     * 연결 해제
-     */
-    public void remove(String orderId) {
-        SseEmitter emitter = emitters.remove(orderId);
-        if (emitter != null) {
-            emitter.complete();
-            log.debug("[SSE] 연결 해제 - orderId: {}", orderId);
         }
     }
 

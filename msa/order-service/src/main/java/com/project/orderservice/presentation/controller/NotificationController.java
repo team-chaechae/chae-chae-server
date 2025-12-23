@@ -39,16 +39,6 @@ public class NotificationController {
     }
 
     /**
-     * SSE 연결 해제
-     */
-    @DeleteMapping("/unsubscribe/{orderId}")
-    @Operation(summary = "SSE 구독 해제", description = "SSE 연결을 명시적으로 해제")
-    public void unsubscribe(@PathVariable String orderId) {
-        log.info("[SSE 구독 해제] orderId: {}", orderId);
-        sseEmitterRegistry.remove(orderId);
-    }
-
-    /**
      * 현재 SSE 연결 수 조회 (모니터링용)
      */
     @GetMapping("/connections")
