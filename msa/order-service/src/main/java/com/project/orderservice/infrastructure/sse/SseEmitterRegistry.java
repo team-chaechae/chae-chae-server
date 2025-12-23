@@ -52,10 +52,11 @@ public class SseEmitterRegistry {
     }
 
     /**
-     * 특정 orderId로 이벤트 전송
+     * 특정 orderId로 이벤트 전송 후 연결 종료
+     * 결제 알림은 일회성이므로 전송 후 즉시 연결 해제
      */
     public void sendEvent(String orderId, NotificationEvent event) {
-        SseEmitter emitter = emitters.get(orderId);
+        SseEmitter emitter = emitters.remove(orderId);
 
         if (emitter == null) {
             log.debug("[SSE] 연결 없음 - orderId: {}", orderId);
@@ -69,7 +70,9 @@ public class SseEmitterRegistry {
             log.info("[SSE] 이벤트 전송 완료 - orderId: {}, eventType: {}", orderId, event.getEventType());
         } catch (IOException e) {
             log.warn("[SSE] 전송 실패 - orderId: {}, error: {}", orderId, e.getMessage());
-            emitters.remove(orderId);
+        } finally {
+            emitter.complete();
+            log.debug("[SSE] 연결 종료 - orderId: {}", orderId);
         }
     }
 
