@@ -169,11 +169,4 @@ docker-compose --profile infra --profile monitoring --profile app up -d
 - `env.redis` - Redis 설정
 - `env.secret.key` - JWT 시크릿 키
 
-## 문서
-
-상세 문서는 `msa/docs` 디렉토리를 참조하세요:
-- [observability-stack.md](msa/docs/observability-stack.md) - 모니터링 설정 가이드
-- [redis-lua-atomic-inventory-deduction.md](msa/docs/redis-lua-atomic-inventory-deduction.md) - Redis 원자적 연산
-- [troubleshooting-*.md](msa/docs/) - 트러블슈팅 가이드
-
 
