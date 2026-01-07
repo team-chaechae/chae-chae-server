@@ -1,6 +1,7 @@
 package com.project.inventoryservice.application.service;
 
 import com.project.inventoryservice.infrastructure.kafka.InventoryEventProducer;
+import com.project.inventoryservice.infrastructure.kafka.InventoryConfirmedEventProducer;
 import com.project.inventoryservice.infrastructure.kafka.InventoryFailedEventProducer;
 import com.project.inventoryservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,9 @@ class InventoryDeductionServiceIntegrationTest {
     private InventoryEventProducer inventoryEventProducer;
 
     @Mock
+    private InventoryConfirmedEventProducer inventoryConfirmedEventProducer;
+
+    @Mock
     private InventoryFailedEventProducer inventoryFailedEventProducer;
 
     @Mock
@@ -64,6 +68,7 @@ class InventoryDeductionServiceIntegrationTest {
         inventoryDeductionService = new InventoryDeductionService(
                 stockCacheService,
                 inventoryEventProducer,
+                inventoryConfirmedEventProducer,
                 inventoryFailedEventProducer,
                 redissonClient
         );

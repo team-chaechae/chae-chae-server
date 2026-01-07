@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
@@ -42,10 +43,10 @@ class OutboxRepositoryIntegrationTest {
 
             // when - threshold를 미래로 설정하면 모든 메시지가 대상이 됨
             List<OutboxEntity> result = outboxRepository.findMessagesForRetry(
-                    OutboxStatus.SEND_SUCCESS,
+                    List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
                     LocalDateTime.now().plusMinutes(10),
                     3,
-                    100
+                    PageRequest.of(0, 100)
             );
 
             // then
@@ -62,10 +63,10 @@ class OutboxRepositoryIntegrationTest {
 
             // when
             List<OutboxEntity> result = outboxRepository.findMessagesForRetry(
-                    OutboxStatus.SEND_SUCCESS,
+                    List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
                     LocalDateTime.now().plusMinutes(10),
                     3,
-                    100
+                    PageRequest.of(0, 100)
             );
 
             // then
@@ -85,10 +86,10 @@ class OutboxRepositoryIntegrationTest {
 
             // when
             List<OutboxEntity> result = outboxRepository.findMessagesForRetry(
-                    OutboxStatus.SEND_SUCCESS,
+                    List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
                     LocalDateTime.now().plusMinutes(10),
                     3,
-                    100
+                    PageRequest.of(0, 100)
             );
 
             // then
@@ -112,10 +113,10 @@ class OutboxRepositoryIntegrationTest {
 
             // when - maxRetries = 3
             List<OutboxEntity> result = outboxRepository.findMessagesForRetry(
-                    OutboxStatus.SEND_SUCCESS,
+                    List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
                     LocalDateTime.now().plusMinutes(10),
                     3,
-                    100
+                    PageRequest.of(0, 100)
             );
 
             // then
@@ -133,10 +134,10 @@ class OutboxRepositoryIntegrationTest {
 
             // when
             List<OutboxEntity> result = outboxRepository.findMessagesForRetry(
-                    OutboxStatus.SEND_SUCCESS,
+                    List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
                     LocalDateTime.now().plusMinutes(10),
                     3,
-                    5
+                    PageRequest.of(0, 5)
             );
 
             // then
@@ -153,10 +154,10 @@ class OutboxRepositoryIntegrationTest {
 
             // when
             List<OutboxEntity> result = outboxRepository.findMessagesForRetry(
-                    OutboxStatus.SEND_SUCCESS,
+                    List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
                     LocalDateTime.now().plusMinutes(10),
                     3,
-                    100
+                    PageRequest.of(0, 100)
             );
 
             // then

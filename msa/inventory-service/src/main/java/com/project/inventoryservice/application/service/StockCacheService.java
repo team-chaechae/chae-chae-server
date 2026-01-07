@@ -28,7 +28,7 @@ public class StockCacheService {
     // Lua 스크립트 (재고 차감 - 재고 부족 체크 포함)
     private static final String DECREASE_STOCK_SCRIPT =
             "local current = tonumber(redis.call('GET', KEYS[1]) or 0) " +
-            "if current < tonumber(ARGV[1]) then return -1 end " +
+            "if current <= 0 or current < tonumber(ARGV[1]) then return -1 end " +
             "return redis.call('DECRBY', KEYS[1], ARGV[1])";
 
     // Lua 스크립트 (재고 증가)

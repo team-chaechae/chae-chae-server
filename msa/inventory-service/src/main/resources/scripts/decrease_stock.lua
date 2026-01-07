@@ -11,8 +11,8 @@ local ttl = tonumber(ARGV[2])
 -- 현재 재고 조회
 local current = tonumber(redis.call('GET', key) or 0)
 
--- 재고 부족 체크
-if current < amount then
+-- 재고 부족/0 체크
+if current <= 0 or current < amount then
     return -1
 end
 

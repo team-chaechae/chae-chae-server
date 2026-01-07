@@ -7,7 +7,7 @@
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %cyan(%logger{36}) - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] %cyan(%logger{36}) [orderId=%X{orderId:-}, salesId=%X{salesId:-}] - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -26,6 +26,8 @@
             <customFields>{"app":"${appName}"}</customFields>
             <includeMdcKeyName>traceId</includeMdcKeyName>
             <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>orderId</includeMdcKeyName>
+            <includeMdcKeyName>salesId</includeMdcKeyName>
         </encoder>
     </appender>
 
@@ -47,7 +49,7 @@
                 <pattern>app=${appName},level=%level</pattern>
             </label>
             <message>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [orderId=%X{orderId:-}, salesId=%X{salesId:-}] - %msg%n</pattern>
             </message>
         </format>
     </appender>

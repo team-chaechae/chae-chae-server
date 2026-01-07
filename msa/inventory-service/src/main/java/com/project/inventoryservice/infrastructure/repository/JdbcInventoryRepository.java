@@ -38,7 +38,8 @@ public class JdbcInventoryRepository {
         }
 
         String sql = "INSERT INTO inventory (product_id, quantity, change_type, order_id, status, created_at, updated_at) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                     "VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                     "ON DUPLICATE KEY UPDATE inventory_id = inventory_id";
 
         LocalDateTime now = LocalDateTime.now();
         List<Object[]> batchArgs = new ArrayList<>();
@@ -68,7 +69,8 @@ public class JdbcInventoryRepository {
         }
 
         String sql = "INSERT INTO inventory (product_id, quantity, change_type, order_id, status, created_at, updated_at) " +
-                     "VALUES (?, ?, ?, ?, ?, NOW(), NOW())";
+                     "VALUES (?, ?, ?, ?, ?, NOW(), NOW()) " +
+                     "ON DUPLICATE KEY UPDATE inventory_id = inventory_id";
 
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
@@ -121,27 +123,4 @@ public class JdbcInventoryRepository {
         log.info("[배치 처리 완료] inventory {} 건 저장, 소요시간: {}ms", events.size(), elapsed);
     }
 
-    /**
-     * orderId로 CONFIRMED 이벤트 INSERT (이벤트 소싱)
-     */
-    public int confirmByOrderId(String orderId) {
-        String sql = "INSERT INTO inventory (product_id, quantity, change_type, order_id, status, created_at, updated_at) " +
-                     "VALUES (0, 0, 'CONFIRM', ?, 'CONFIRMED', NOW(), NOW())";
-
-        int inserted = jdbcTemplate.update(sql, orderId);
-        log.info("[CONFIRM INSERT] orderId: {}, 삽입 건수: {}", orderId, inserted);
-        return inserted;
-    }
-
-    /**
-     * orderId로 CANCELLED 이벤트 INSERT (이벤트 소싱)
-     */
-    public int cancelByOrderId(String orderId) {
-        String sql = "INSERT INTO inventory (product_id, quantity, change_type, order_id, status, created_at, updated_at) " +
-                     "VALUES (0, 0, 'CANCEL', ?, 'CANCELLED', NOW(), NOW())";
-
-        int inserted = jdbcTemplate.update(sql, orderId);
-        log.info("[CANCEL INSERT] orderId: {}, 삽입 건수: {}", orderId, inserted);
-        return inserted;
-    }
 }

@@ -1,1 +1,8 @@
 rootProject.name = 'payment-service'
+
+// Shared Libraries
+includeBuild('../shared-libs') {
+    dependencySubstitution {
+        substitute module('com.project:common-dlq') using project(':common-dlq')
+    }
+}

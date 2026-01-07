@@ -77,6 +77,17 @@ public class SseEmitterRegistry {
     }
 
     /**
+     * SSE 연결 해제
+     */
+    public void remove(String orderId) {
+        SseEmitter emitter = emitters.remove(orderId);
+        if (emitter != null) {
+            emitter.complete();
+            log.debug("[SSE] 연결 해제 - orderId: {}", orderId);
+        }
+    }
+
+    /**
      * 현재 연결 수 조회 (모니터링용)
      */
     public int getConnectionCount() {

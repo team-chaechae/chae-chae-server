@@ -2,6 +2,7 @@ package com.project.inventoryservice.application.service;
 
 import com.project.inventoryservice.infrastructure.kafka.InventoryEvent;
 import com.project.inventoryservice.infrastructure.kafka.InventoryEventProducer;
+import com.project.inventoryservice.infrastructure.kafka.InventoryConfirmedEventProducer;
 import com.project.inventoryservice.infrastructure.kafka.InventoryFailedEventProducer;
 import com.project.inventoryservice.infrastructure.kafka.dto.InventoryFailedEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.PaymentCompletedEvent;
@@ -15,7 +16,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,7 +41,16 @@ class InventoryDeductionServiceTest {
     private InventoryEventProducer inventoryEventProducer;
 
     @Mock
+    private InventoryConfirmedEventProducer inventoryConfirmedEventProducer;
+
+    @Mock
     private InventoryFailedEventProducer inventoryFailedEventProducer;
+
+    @Mock
+    private RedissonClient redissonClient;
+
+    @Mock
+    private RBucket<String> rBucket;
 
     @InjectMocks
     private InventoryDeductionService inventoryDeductionService;
@@ -55,6 +68,8 @@ class InventoryDeductionServiceTest {
     void setUp() {
         orderId = "order-test-123";
         salesId = 1L;
+        lenient().when(redissonClient.<String>getBucket(anyString())).thenReturn(rBucket);
+        lenient().when(rBucket.setIfAbsent(anyString(), any(Duration.class))).thenReturn(true);
     }
 
     @Nested
@@ -252,14 +267,13 @@ class InventoryDeductionServiceTest {
         @Test
         @DisplayName("동일한 이벤트가 여러 번 와도 재고는 한 번만 차감되어야 한다 (멱등성 키 필요)")
         void processPaymentCompleted_Idempotency_Consideration() {
-            // NOTE: 현재 구현에서는 멱등성 보장이 없음
-            // 실제 운영 환경에서는 orderId 기반 중복 체크 필요
-
             // given - 같은 orderId로 두 번 호출
             PaymentCompletedEvent event = createPaymentCompletedEvent(
                     List.of(createOrderItem(1L, "상품A", 2, 10000))
             );
             given(stockCacheService.decreaseStock(1L, 2)).willReturn(98, 96);
+            given(rBucket.setIfAbsent(anyString(), any(Duration.class)))
+                    .willReturn(true, false);
 
             // when - 첫 번째 호출
             inventoryDeductionService.processPaymentCompleted(event);
@@ -267,11 +281,8 @@ class InventoryDeductionServiceTest {
             // when - 두 번째 호출 (중복)
             inventoryDeductionService.processPaymentCompleted(event);
 
-            // then - 현재는 두 번 차감됨 (멱등성 미보장)
-            // TODO: 멱등성 보장을 위해 orderId 기반 중복 체크 구현 필요
-            verify(stockCacheService, times(2)).decreaseStock(1L, 2);
-
-            // 이상적인 경우: verify(stockCacheService, times(1)).decreaseStock(1L, 2);
+            // then - 멱등성 키로 한 번만 차감
+            verify(stockCacheService, times(1)).decreaseStock(1L, 2);
         }
     }
 

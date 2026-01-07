@@ -30,6 +30,17 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: all
+        enable.idempotence: true
+        delivery.timeout.ms: 15000
+        request.timeout.ms: 5000
+        max.block.ms: 15000
+        linger.ms: 5
+        batch.size: 32768
+        compression.type: lz4
+        retries: 0
+        max.in.flight.requests.per.connection: 1
 
 server:
   port: 8086
@@ -54,7 +65,7 @@ management:
       probability: 1.0
   otlp:
     tracing:
-      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4318}/v1/traces
 
 logging:
   file:
@@ -73,3 +84,42 @@ kafka:
     core-pool-size: 5
     max-pool-size: 20
     acquire-timeout-ms: 30000
+
+# Slack 알림 설정
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL}
+  alert:
+    enabled: ${SLACK_ALERT_ENABLED:true}
+
+# DLQ (Dead Letter Queue) 설정
+dlq:
+  enabled: true
+  topic-suffix: .dlq
+  max-retries: 3
+  retry-interval-ms: 1000
+  retry-multiplier: 2.0
+  alert-enabled: true
+  db-enabled: true
+  technical-replay:
+    enabled: true
+    schedule-cron: "0 */5 * * * ?"
+    batch-size: 100
+    max-replay-retries: 3
+  cleanup:
+    enabled: true
+    schedule-cron: "0 0 3 * * ?"
+    retention-days: 30
+  alert-threshold:
+    pending-count: 100
+    check-cron: "0 0 * * * ?"
+
+# Outbox Relay 설정
+outbox:
+  relay:
+    interval-ms: 120000
+    batch-size: 50
+    threshold-minutes: 5
+    max-retries: 3
+    cleanup-days: 7
+    cleanup-cron: "0 0 3 * * ?"

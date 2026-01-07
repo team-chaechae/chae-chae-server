@@ -3,7 +3,6 @@ package com.project.paymentservice.infrastructure.config;
 import com.project.paymentservice.infrastructure.config.kafka.KafkaConsumerHelper;
 import com.project.paymentservice.infrastructure.kafka.dto.InventoryFailedEvent;
 import com.project.paymentservice.infrastructure.kafka.dto.OrderCreatedEvent;
-import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -21,13 +20,10 @@ import java.util.Map;
 
 @EnableKafka
 @Configuration
-@RequiredArgsConstructor
 public class KafkaConfig {
 
     public static final String TOPIC_PAYMENT_COMPLETED = "payment-completed";
     public static final String TOPIC_PAYMENT_REFUNDED = "payment-refunded";
-
-    private final CommonErrorHandler kafkaErrorHandler;
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9093}")
     private String bootstrapServers;
@@ -46,7 +42,7 @@ public class KafkaConfig {
         return new DefaultKafkaProducerFactory<>(config);
     }
 
-    @Bean
+    @Bean(name = {"kafkaTemplate", "dlqKafkaTemplate"})
     public KafkaTemplate<String, String> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
@@ -79,7 +75,8 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> orderCreatedListenerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> orderCreatedListenerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         return KafkaConsumerHelper.createListenerFactory(
                 orderCreatedConsumerFactory(),
                 kafkaErrorHandler,
@@ -97,7 +94,8 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryFailedEvent> inventoryFailedListenerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, InventoryFailedEvent> inventoryFailedListenerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         return KafkaConsumerHelper.createListenerFactory(
                 inventoryFailedConsumerFactory(),
                 kafkaErrorHandler,

@@ -7,14 +7,23 @@ import com.project.orderservice.domain.model.SalesEntity;
 import com.project.orderservice.domain.model.SalesItemEntity;
 import com.project.orderservice.domain.repository.OutboxRepository;
 import com.project.orderservice.domain.repository.SalesRepository;
+import com.project.orderservice.infrastructure.config.RedisConfig;
 import com.project.orderservice.infrastructure.kafka.dto.OrderCreatedEvent;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.redisson.api.RedissonClient;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,7 +34,13 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
+@SpringBootTest(
+        classes = {
+                OutboxTransactionConsistencyTest.TestApplication.class,
+                OutboxTransactionConsistencyTest.TestConfig.class
+        },
+        properties = "spring.main.allow-bean-definition-overriding=true"
+)
 @ActiveProfiles("test")
 @DisplayName("Outbox 트랜잭션 일관성 테스트")
 class OutboxTransactionConsistencyTest {
@@ -46,6 +61,26 @@ class OutboxTransactionConsistencyTest {
     private EntityManager entityManager;
 
     private TransactionTemplate transactionTemplate;
+
+    @Configuration
+    @EnableAutoConfiguration
+    @ComponentScan(
+            basePackages = "com.project.orderservice",
+            excludeFilters = @ComponentScan.Filter(
+                    type = FilterType.ASSIGNABLE_TYPE,
+                    classes = RedisConfig.class
+            )
+    )
+    static class TestApplication {
+    }
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        RedissonClient redissonClient() {
+            return Mockito.mock(RedissonClient.class);
+        }
+    }
 
     @BeforeEach
     void setUp() {

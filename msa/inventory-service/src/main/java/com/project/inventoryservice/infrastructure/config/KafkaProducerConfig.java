@@ -51,6 +51,14 @@ public class KafkaProducerConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
+    @Bean(name = "dlqKafkaTemplate")
+    public KafkaTemplate<String, String> dlqKafkaTemplate() {
+        Map<String, Object> config = commonProducerConfig();
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        ProducerFactory<String, String> factory = new DefaultKafkaProducerFactory<>(config);
+        return new KafkaTemplate<>(factory);
+    }
+
     // Generic Object Producer (for various event types)
     @Bean
     public ProducerFactory<String, Object> objectProducerFactory() {

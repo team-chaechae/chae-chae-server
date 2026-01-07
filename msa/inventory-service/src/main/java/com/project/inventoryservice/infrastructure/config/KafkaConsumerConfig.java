@@ -4,7 +4,6 @@ import com.project.inventoryservice.infrastructure.config.kafka.KafkaConsumerHel
 import com.project.inventoryservice.infrastructure.kafka.InventoryEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.ProductCreatedEvent;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,10 +20,7 @@ import org.springframework.kafka.listener.CommonErrorHandler;
  */
 @EnableKafka
 @Configuration
-@RequiredArgsConstructor
 public class KafkaConsumerConfig {
-
-    private final CommonErrorHandler kafkaErrorHandler;
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
@@ -41,7 +37,8 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryEvent> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, InventoryEvent> kafkaListenerContainerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         return KafkaConsumerHelper.createListenerFactory(
                 consumerFactory(),
                 kafkaErrorHandler,
@@ -50,7 +47,8 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryEvent> batchKafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, InventoryEvent> batchKafkaListenerContainerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         return KafkaConsumerHelper.createBatchListenerFactory(
                 consumerFactory(),
                 kafkaErrorHandler,
@@ -70,7 +68,8 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, ProductCreatedEvent> productCreatedListenerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, ProductCreatedEvent> productCreatedListenerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         return KafkaConsumerHelper.createListenerFactory(
                 productCreatedConsumerFactory(),
                 kafkaErrorHandler,
@@ -90,7 +89,8 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, PaymentCompletedEvent> paymentCompletedListenerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, PaymentCompletedEvent> paymentCompletedListenerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         return KafkaConsumerHelper.createListenerFactory(
                 paymentCompletedConsumerFactory(),
                 kafkaErrorHandler,

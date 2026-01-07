@@ -5,7 +5,7 @@ import com.project.paymentservice.domain.model.OutboxEntity.OutboxStatus;
 import com.project.paymentservice.domain.repository.OutboxRepository;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,17 +70,43 @@ public class OutboxMessageRelay {
 
     private void retryPublish(OutboxEntity outbox) {
         try {
-            kafkaTemplate.send(outbox.getTopic(), outbox.getMessageKey(), outbox.getPayload())
-                .get(5, TimeUnit.SECONDS);
-
-            outbox.markAsSendSuccess();
-            log.info("[Outbox Relay] 재발행 성공 - topic: {}, key: {}, outboxId: {}, retryCount: {}",
-                outbox.getTopic(), outbox.getMessageKey(), outbox.getId(), outbox.getRetryCount());
+            CompletableFuture<?> sendFuture = kafkaTemplate.send(
+                outbox.getTopic(), outbox.getMessageKey(), outbox.getPayload());
+            sendFuture.whenComplete((result, ex) -> {
+                if (ex == null) {
+                    outboxRepository.updateStatusSuccessById(
+                        outbox.getId(),
+                        OutboxStatus.SEND_SUCCESS,
+                        LocalDateTime.now()
+                    );
+                    log.info("[Outbox Relay] 재발행 성공 - topic: {}, key: {}, outboxId: {}, retryCount: {}",
+                        outbox.getTopic(), outbox.getMessageKey(), outbox.getId(), outbox.getRetryCount());
+                } else {
+                    outboxRepository.updateStatusFailById(
+                        outbox.getId(),
+                        OutboxStatus.SEND_FAIL,
+                        truncateErrorMessage(ex.getMessage())
+                    );
+                    log.error("[Outbox Relay] 재발행 실패 - outboxId: {}, retryCount: {}, error: {}",
+                        outbox.getId(), outbox.getRetryCount(), ex.getMessage());
+                }
+            });
 
         } catch (Exception e) {
-            outbox.markAsSendFail(e.getMessage());
+            outboxRepository.updateStatusFailById(
+                outbox.getId(),
+                OutboxStatus.SEND_FAIL,
+                truncateErrorMessage(e.getMessage())
+            );
             log.error("[Outbox Relay] 재발행 실패 - outboxId: {}, retryCount: {}, error: {}",
                 outbox.getId(), outbox.getRetryCount(), e.getMessage());
         }
+    }
+
+    private String truncateErrorMessage(String message) {
+        if (message == null) {
+            return null;
+        }
+        return message.length() > 500 ? message.substring(0, 500) : message;
     }
 }

@@ -4,6 +4,7 @@ import com.project.orderservice.domain.model.SalesEntity;
 import com.project.orderservice.domain.model.SalesItemEntity;
 import com.project.orderservice.domain.model.SalesStatus;
 import com.project.orderservice.domain.repository.SalesRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,21 +31,18 @@ class SalesServiceIdempotencyTest {
     @Mock
     private SalesRepository salesRepository;
 
-    private SalesServiceImpl salesService;
+    private SalesTransactionalService salesService;
 
     private String orderId;
     private Long salesId;
 
     @BeforeEach
     void setUp() {
-        // SalesServiceImpl에 필요한 의존성들을 null로 설정 (테스트에 필요한 것만 Mock)
-        salesService = new SalesServiceImpl(
+        // SalesTransactionalService에 필요한 의존성들을 최소 구성으로 설정
+        salesService = new SalesTransactionalService(
                 salesRepository,
-                null, // outboxRepository
-                null, // productCacheClient
-                null, // orderEventProducer
-                null, // transactionTemplate
-                null  // objectMapper
+                null, // eventPublisher
+                new SimpleMeterRegistry()
         );
 
         orderId = "order-test-123";
@@ -77,7 +75,7 @@ class SalesServiceIdempotencyTest {
         void completeSales_AlreadyCompleted_NoChange() {
             // given
             SalesEntity completedSales = createSalesEntity(SalesStatus.COMPLETED);
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(completedSales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(completedSales);
 
             // when
             salesService.completeSales(salesId, orderId);
@@ -92,7 +90,7 @@ class SalesServiceIdempotencyTest {
         void completeSales_PendingOrder_Completed() {
             // given
             SalesEntity pendingSales = createSalesEntity(SalesStatus.PENDING);
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(pendingSales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(pendingSales);
 
             // when
             salesService.completeSales(salesId, orderId);
@@ -105,7 +103,7 @@ class SalesServiceIdempotencyTest {
         @DisplayName("존재하지 않는 주문에 대한 완료 요청은 무시된다")
         void completeSales_NonExistentOrder_Ignored() {
             // given
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(null);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(null);
 
             // when & then - 예외 없이 정상 처리
             salesService.completeSales(salesId, orderId);
@@ -116,7 +114,7 @@ class SalesServiceIdempotencyTest {
         void completeSales_MultipleCalls_ProcessedOnce() {
             // given
             SalesEntity pendingSales = createSalesEntity(SalesStatus.PENDING);
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(pendingSales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(pendingSales);
             AtomicInteger statusChangeCount = new AtomicInteger(0);
 
             // 상태 변경을 추적하기 위한 spy 설정
@@ -126,7 +124,7 @@ class SalesServiceIdempotencyTest {
                 return invocation.callRealMethod();
             }).when(spySales).complete();
 
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(spySales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(spySales);
 
             // when - 3번 호출
             salesService.completeSales(salesId, orderId);
@@ -148,7 +146,7 @@ class SalesServiceIdempotencyTest {
         void cancelSales_AlreadyCancelled_NoChange() {
             // given
             SalesEntity cancelledSales = createSalesEntity(SalesStatus.CANCELLED);
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(cancelledSales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(cancelledSales);
 
             // when
             salesService.cancelSales(salesId, orderId, "중복 취소 요청");
@@ -163,7 +161,7 @@ class SalesServiceIdempotencyTest {
         void cancelSales_PendingOrder_Cancelled() {
             // given
             SalesEntity pendingSales = createSalesEntity(SalesStatus.PENDING);
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(pendingSales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(pendingSales);
 
             // when
             salesService.cancelSales(salesId, orderId, "재고 부족");
@@ -177,7 +175,7 @@ class SalesServiceIdempotencyTest {
         @DisplayName("존재하지 않는 주문에 대한 취소 요청은 무시된다")
         void cancelSales_NonExistentOrder_Ignored() {
             // given
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(null);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(null);
 
             // when & then - 예외 없이 정상 처리
             salesService.cancelSales(salesId, orderId, "취소 사유");
@@ -196,7 +194,7 @@ class SalesServiceIdempotencyTest {
                 return invocation.callRealMethod();
             }).when(spySales).cancel(anyString());
 
-            given(salesRepository.findSalesBySalesId(salesId)).willReturn(spySales);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(spySales);
 
             // when - 3번 호출
             salesService.cancelSales(salesId, orderId, "이유1");

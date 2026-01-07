@@ -22,7 +22,7 @@ public class SlackAlertService {
 
     public SlackAlertService(
             @Value("${slack.webhook.url:}") String webhookUrl,
-            @Value("${spring.application.name:inventory-service}") String serviceName,
+            @Value("${spring.application.name:unknown-service}") String serviceName,
             @Value("${slack.alert.enabled:false}") boolean enabled) {
         this.restClient = RestClient.create();
         this.webhookUrl = webhookUrl;
@@ -79,7 +79,10 @@ public class SlackAlertService {
                 *Error:* %s
                 *Exception:* `%s`
                 """,
-                serviceName, topic, getCurrentTime(), errorMessage,
+                serviceName,
+                topic,
+                getCurrentTime(),
+                errorMessage,
                 e != null ? e.getClass().getSimpleName() + ": " + e.getMessage() : "N/A"
         );
     }
@@ -93,7 +96,10 @@ public class SlackAlertService {
                 *Error:* %s
                 *Exception:* `%s`
                 """,
-                serviceName, endpoint, getCurrentTime(), errorMessage,
+                serviceName,
+                endpoint,
+                getCurrentTime(),
+                errorMessage,
                 e != null ? e.getClass().getSimpleName() + ": " + e.getMessage() : "N/A"
         );
     }
@@ -105,7 +111,10 @@ public class SlackAlertService {
                 *Time:* %s
                 *Details:* %s
                 """,
-                title, serviceName, getCurrentTime(), description
+                title,
+                serviceName,
+                getCurrentTime(),
+                description
         );
     }
 

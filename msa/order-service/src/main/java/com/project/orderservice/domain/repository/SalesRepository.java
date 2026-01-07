@@ -13,6 +13,8 @@ public interface SalesRepository {
 
     SalesEntity findSalesBySalesId(Long salesId);
 
+    SalesEntity findSalesBySalesIdSimple(Long salesId);
+
     Page<SalesEntity> findSalesByDeletedAtIsNullWithCondition(
             Pageable pageable,
             Boolean deletedCond,

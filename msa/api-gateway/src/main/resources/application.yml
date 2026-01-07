@@ -70,7 +70,7 @@ management:
       probability: 1.0
   otlp:
     tracing:
-      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4318}/v1/traces
 
 logging:
   file:

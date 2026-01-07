@@ -12,7 +12,7 @@ services:
     container_name: msa-mysql-user
     profiles: [infra]
     env_file:
-      - env.mysql.user
+      - .env.user.mysql
     ports:
       - "3307:3306"
     volumes:
@@ -25,7 +25,7 @@ services:
     container_name: msa-mysql-product
     profiles: [infra]
     env_file:
-      - env.mysql.product
+      - .env.product.mysql
     ports:
       - "3308:3306"
     volumes:
@@ -38,7 +38,7 @@ services:
     container_name: msa-mysql-inventory
     profiles: [infra]
     env_file:
-      - env.mysql.inventory
+      - .env.inventory.mysql
     ports:
       - "3309:3306"
     volumes:
@@ -51,7 +51,7 @@ services:
     container_name: msa-mysql-order
     profiles: [infra]
     env_file:
-      - env.mysql.order
+      - .env.order.mysql
     ports:
       - "3310:3306"
     volumes:
@@ -59,18 +59,6 @@ services:
     networks:
       - msa-network
 
-  mysql-chatbot:
-    image: mysql:8.0
-    container_name: msa-mysql-chatbot
-    profiles: [infra]
-    env_file:
-      - env.mysql.chatbot
-    ports:
-      - "3311:3306"
-    volumes:
-      - msa-mysql-chatbot-data:/var/lib/mysql
-    networks:
-      - msa-network
 
   mysql-payment:
     image: mysql:8.0
@@ -203,6 +191,9 @@ services:
       - zookeeper
     ports:
       - "9093:9093"
+      - "9999:9999"
+    volumes:
+      - ./docker-data/kafka-1:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -213,6 +204,39 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka
+      JMX_PORT: 9999
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+    networks:
+      - msa-network
+
+  # Kafka (Broker 2)
+  kafka-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: msa-kafka-2
+    profiles: [infra]
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9093"
+      - "10000:9999"
+    volumes:
+      - ./docker-data/kafka-2:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:9092,EXTERNAL://localhost:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka-2
+      JMX_PORT: 9999
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
     networks:
       - msa-network
 
@@ -229,6 +253,8 @@ services:
       KAFKA_CLUSTERS_0_NAME: msa-kafka-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_METRICS_TYPE: JMX
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9999
     networks:
       - msa-network
 
@@ -289,18 +315,6 @@ services:
     networks:
       - msa-network
 
-  mysql-exporter-chatbot:
-    image: prom/mysqld-exporter:v0.14.0
-    container_name: msa-mysql-exporter-chatbot
-    profiles: [monitoring]
-    environment:
-      DATA_SOURCE_NAME: "root:password@(mysql-chatbot:3306)/chatbot_db"
-    ports:
-      - "9108:9104"
-    depends_on:
-      - mysql-chatbot
-    networks:
-      - msa-network
 
   mysql-exporter-payment:
     image: prom/mysqld-exporter:v0.14.0
@@ -343,7 +357,6 @@ services:
       - mysql-exporter-product
       - mysql-exporter-inventory
       - mysql-exporter-order
-      - mysql-exporter-chatbot
       - redis-exporter
     networks:
       - msa-network
@@ -686,12 +699,8 @@ services:
       - "8185:8085"
     depends_on:
       - eureka-server
-      - mysql-chatbot
-    env_file:
-      - env.mysql.chatbot
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-chatbot:3306/chatbot_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       - CHATBOT_BASE-URL_FAST-API=http://host.docker.internal:8000
     networks:
       - msa-network
@@ -701,7 +710,6 @@ volumes:
   msa-mysql-product-data:
   msa-mysql-inventory-data:
   msa-mysql-order-data:
-  msa-mysql-chatbot-data:
   msa-mysql-payment-data:
   msa-tempo-data:
   msa-loki-data:

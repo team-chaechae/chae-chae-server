@@ -1,52 +1,27 @@
 package com.project.inventoryservice.infrastructure.config.kafka;
 
-import com.project.inventoryservice.infrastructure.alert.SlackAlertService;
-import lombok.RequiredArgsConstructor;
+import com.project.common.dlq.handler.DlqErrorHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.listener.CommonErrorHandler;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.util.backoff.FixedBackOff;
 
+/**
+ * Kafka Error Handler 설정
+ *
+ * DLQ 모듈의 DlqErrorHandler를 사용하여 에러 처리 및 DLQ 발행을 수행합니다.
+ * - 기술적 오류: 재시도 후 DLQ (자동 리플레이 대상)
+ * - 비즈니스 오류: 즉시 DLQ + DB 저장 (수동 확인)
+ */
 @Slf4j
 @Configuration
-@RequiredArgsConstructor
 public class KafkaErrorHandlerConfig {
 
-    private final SlackAlertService slackAlertService;
-
     @Bean
-    public CommonErrorHandler kafkaErrorHandler() {
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-                (consumerRecord, exception) -> {
-                    String topic = consumerRecord != null ? consumerRecord.topic() : "unknown";
-                    String key = consumerRecord != null && consumerRecord.key() != null
-                            ? consumerRecord.key().toString() : "unknown";
-
-                    log.error("[Kafka Error Handler] 메시지 처리 실패 - topic: {}, key: {}, partition: {}, offset: {}, error: {}",
-                            topic, key,
-                            consumerRecord != null ? consumerRecord.partition() : -1,
-                            consumerRecord != null ? consumerRecord.offset() : -1,
-                            exception.getMessage(), exception);
-
-                    slackAlertService.sendKafkaErrorAlert(
-                            topic,
-                            String.format("메시지 처리 실패 - key: %s, partition: %d, offset: %d",
-                                    key,
-                                    consumerRecord != null ? consumerRecord.partition() : -1,
-                                    consumerRecord != null ? consumerRecord.offset() : -1),
-                            exception
-                    );
-                },
-                new FixedBackOff(1000L, 2)
-        );
-
-        errorHandler.addNotRetryableExceptions(
-                org.apache.kafka.common.errors.SerializationException.class,
-                org.springframework.kafka.support.serializer.DeserializationException.class
-        );
-
-        return errorHandler;
+    @Primary
+    public CommonErrorHandler kafkaErrorHandler(DlqErrorHandler dlqErrorHandler) {
+        log.info("[Kafka Config] DLQ ErrorHandler 설정 완료");
+        return dlqErrorHandler;
     }
 }

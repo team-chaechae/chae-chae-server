@@ -56,11 +56,17 @@ class OutboxMessageRelayIntegrationTest {
     @Captor
     private ArgumentCaptor<String> payloadCaptor;
 
+    private long idSequence = 1L;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(outboxMessageRelay, "thresholdMinutes", 10);
         ReflectionTestUtils.setField(outboxMessageRelay, "batchSize", 100);
         ReflectionTestUtils.setField(outboxMessageRelay, "maxRetries", 3);
+        ReflectionTestUtils.setField(outboxMessageRelay, "maxAgeSeconds", 3600L);
+        ReflectionTestUtils.setField(outboxMessageRelay, "baseBackoffMs", 1000L);
+        ReflectionTestUtils.setField(outboxMessageRelay, "maxBackoffMs", 60000L);
+        ReflectionTestUtils.setField(outboxMessageRelay, "dlqTopicSuffix", ".dlq");
         ReflectionTestUtils.setField(outboxMessageRelay, "cleanupDays", 7);
     }
 
@@ -85,7 +91,7 @@ class OutboxMessageRelayIntegrationTest {
             // given
             OutboxEntity outbox = createTestOutbox("order-1");
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(List.of(outbox));
             given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
                     .willReturn(createSuccessFuture());
@@ -97,7 +103,11 @@ class OutboxMessageRelayIntegrationTest {
             verify(stringKafkaTemplate).send(topicCaptor.capture(), keyCaptor.capture(), payloadCaptor.capture());
             assertThat(topicCaptor.getValue()).isEqualTo("order-created");
             assertThat(keyCaptor.getValue()).isEqualTo("order-1");
-            assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
+            verify(outboxRepository).updateStatusSuccessById(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_SUCCESS),
+                    any(LocalDateTime.class)
+            );
         }
 
         @Test
@@ -107,7 +117,7 @@ class OutboxMessageRelayIntegrationTest {
             OutboxEntity outbox = createTestOutbox("order-1");
             outbox.markAsSendFail("Previous failure");
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(List.of(outbox));
             given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
                     .willReturn(createSuccessFuture());
@@ -116,7 +126,11 @@ class OutboxMessageRelayIntegrationTest {
             outboxMessageRelay.relayFailedMessages();
 
             // then
-            assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
+            verify(outboxRepository).updateStatusSuccessById(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_SUCCESS),
+                    any(LocalDateTime.class)
+            );
         }
 
         @Test
@@ -127,7 +141,7 @@ class OutboxMessageRelayIntegrationTest {
             OutboxEntity outbox2 = createTestOutbox("order-2");
             OutboxEntity outbox3 = createTestOutbox("order-3");
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(Arrays.asList(outbox1, outbox2, outbox3));
             given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
                     .willReturn(createSuccessFuture());
@@ -137,16 +151,18 @@ class OutboxMessageRelayIntegrationTest {
 
             // then
             verify(stringKafkaTemplate, times(3)).send(anyString(), anyString(), anyString());
-            assertThat(outbox1.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
-            assertThat(outbox2.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
-            assertThat(outbox3.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
+            verify(outboxRepository, times(3)).updateStatusSuccessById(
+                    anyLong(),
+                    eq(OutboxStatus.SEND_SUCCESS),
+                    any(LocalDateTime.class)
+            );
         }
 
         @Test
         @DisplayName("재발행 대상이 없으면 아무것도 하지 않는다")
         void noMessages_DoesNothing() {
             // given
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(Collections.emptyList());
 
             // when
@@ -162,7 +178,7 @@ class OutboxMessageRelayIntegrationTest {
             // given
             OutboxEntity outbox = createTestOutbox("order-1");
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(List.of(outbox));
             given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
                     .willReturn(createFailureFuture("Kafka broker unavailable"));
@@ -171,9 +187,13 @@ class OutboxMessageRelayIntegrationTest {
             outboxMessageRelay.relayFailedMessages();
 
             // then
-            assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.SEND_FAIL);
-            assertThat(outbox.getRetryCount()).isEqualTo(1);
-            assertThat(outbox.getErrorMessage()).contains("Kafka broker unavailable");
+            verify(outboxRepository).updateStatusFailById(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_FAIL),
+                    contains("Kafka broker unavailable"),
+                    any(LocalDateTime.class)
+            );
+            assertThat(outbox.getRetryCount()).isEqualTo(0);
         }
 
         @Test
@@ -184,7 +204,7 @@ class OutboxMessageRelayIntegrationTest {
             OutboxEntity outbox2 = createTestOutbox("order-2");
             OutboxEntity outbox3 = createTestOutbox("order-3");
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(Arrays.asList(outbox1, outbox2, outbox3));
 
             // 첫 번째 성공, 두 번째 실패, 세 번째 성공
@@ -199,9 +219,17 @@ class OutboxMessageRelayIntegrationTest {
             outboxMessageRelay.relayFailedMessages();
 
             // then
-            assertThat(outbox1.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
-            assertThat(outbox2.getStatus()).isEqualTo(OutboxStatus.SEND_FAIL);
-            assertThat(outbox3.getStatus()).isEqualTo(OutboxStatus.SEND_SUCCESS);
+            verify(outboxRepository, times(2)).updateStatusSuccessById(
+                    anyLong(),
+                    eq(OutboxStatus.SEND_SUCCESS),
+                    any(LocalDateTime.class)
+            );
+            verify(outboxRepository).updateStatusFailById(
+                    eq(outbox2.getId()),
+                    eq(OutboxStatus.SEND_FAIL),
+                    contains("Connection refused"),
+                    any(LocalDateTime.class)
+            );
         }
     }
 
@@ -246,8 +274,10 @@ class OutboxMessageRelayIntegrationTest {
                     "order-created",
                     orderId
             );
+            ReflectionTestUtils.setField(outbox, "id", idSequence++);
+            ReflectionTestUtils.setField(outbox, "createdAt", LocalDateTime.now().minusMinutes(1));
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(List.of(outbox));
             given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
                     .willReturn(createSuccessFuture());
@@ -278,7 +308,7 @@ class OutboxMessageRelayIntegrationTest {
             // given
             OutboxEntity outbox = createTestOutbox("order-timeout");
 
-            given(outboxRepository.findMessagesForRetry(any(), any(), anyInt(), anyInt()))
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
                     .willReturn(List.of(outbox));
 
             // 타임아웃 시뮬레이션
@@ -291,8 +321,13 @@ class OutboxMessageRelayIntegrationTest {
             outboxMessageRelay.relayFailedMessages();
 
             // then - 메시지가 SEND_FAIL 상태로 유지되어 다음 릴레이에서 재시도됨
-            assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.SEND_FAIL);
-            assertThat(outbox.canRetry(3)).isTrue();  // 아직 재시도 가능
+            verify(outboxRepository).updateStatusFailById(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_FAIL),
+                    contains("Request timeout"),
+                    any(LocalDateTime.class)
+            );
+            assertThat(outbox.canRetry(3)).isTrue();
         }
 
         @Test
@@ -306,10 +341,10 @@ class OutboxMessageRelayIntegrationTest {
 
             // findMessagesForRetry에서 이미 필터링됨 (retryCount < maxRetries 조건)
             given(outboxRepository.findMessagesForRetry(
-                    eq(OutboxStatus.SEND_SUCCESS),
+                    eq(List.of(OutboxStatus.INIT, OutboxStatus.SEND_FAIL)),
                     any(LocalDateTime.class),
                     eq(3),  // maxRetries
-                    eq(100)
+                    any()
             )).willReturn(Collections.emptyList());  // exhausted 메시지는 조회되지 않음
 
             // when
@@ -322,7 +357,7 @@ class OutboxMessageRelayIntegrationTest {
     }
 
     private OutboxEntity createTestOutbox(String aggregateId) {
-        return OutboxEntity.create(
+        OutboxEntity outbox = OutboxEntity.create(
                 "ORDER",
                 aggregateId,
                 "ORDER_CREATED",
@@ -330,5 +365,8 @@ class OutboxMessageRelayIntegrationTest {
                 "order-created",
                 aggregateId
         );
+        ReflectionTestUtils.setField(outbox, "id", idSequence++);
+        ReflectionTestUtils.setField(outbox, "createdAt", LocalDateTime.now().minusMinutes(1));
+        return outbox;
     }
 }

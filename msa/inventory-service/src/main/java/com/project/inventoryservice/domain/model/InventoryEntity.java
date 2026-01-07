@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -19,10 +20,19 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-@Table(name = "inventory", indexes = {
-    @Index(name = "idx_inventory_order_id", columnList = "order_id"),
-    @Index(name = "idx_inventory_status", columnList = "status")
-})
+@Table(
+    name = "inventory",
+    indexes = {
+        @Index(name = "idx_inventory_order_id", columnList = "order_id"),
+        @Index(name = "idx_inventory_status", columnList = "status")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "ux_inventory_order_product_change",
+            columnNames = {"order_id", "product_id", "change_type"}
+        )
+    }
+)
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

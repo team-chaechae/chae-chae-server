@@ -1,12 +1,13 @@
 package com.project.orderservice.application.global.exception;
 
+import com.project.common.dlq.exception.BaseErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
 @AllArgsConstructor
-public enum ErrorCode {
+public enum ErrorCode implements BaseErrorCode {
 
     // 400 Bad Request
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "ORD-400-01", "잘못된 입력값입니다."),

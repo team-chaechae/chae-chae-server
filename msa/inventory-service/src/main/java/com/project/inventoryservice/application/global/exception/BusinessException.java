@@ -1,19 +1,17 @@
 package com.project.inventoryservice.application.global.exception;
 
-import lombok.Getter;
-
-@Getter
-public class BusinessException extends RuntimeException {
-
-    private final ErrorCode errorCode;
+public class BusinessException extends com.project.common.dlq.exception.BusinessException {
 
     public BusinessException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
+        super(errorCode);
     }
 
     public BusinessException(ErrorCode errorCode, String message) {
-        super(message);
-        this.errorCode = errorCode;
+        super(errorCode, message);
+    }
+
+    @Override
+    public ErrorCode getErrorCode() {
+        return (ErrorCode) super.getErrorCode();
     }
 }

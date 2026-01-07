@@ -7,8 +7,11 @@ import com.project.inventoryservice.infrastructure.kafka.InventoryFailedEventPro
 import com.project.inventoryservice.infrastructure.kafka.dto.InventoryConfirmedEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.InventoryFailedEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.PaymentCompletedEvent;
+import com.project.inventoryservice.infrastructure.repository.JpaInventoryRepository;
+import com.project.inventoryservice.domain.model.constraint.InventoryChangeType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class InventoryDeductionService {
     private final InventoryConfirmedEventProducer inventoryConfirmedEventProducer;
     private final InventoryFailedEventProducer inventoryFailedEventProducer;
     private final RedissonClient redissonClient;
+    private final JpaInventoryRepository jpaInventoryRepository;
 
     /**
      * 결제 완료 이벤트 처리 - 재고 차감
@@ -44,80 +48,131 @@ public class InventoryDeductionService {
         String orderId = event.getOrderId();
         Long salesId = event.getSalesId();
         List<PaymentCompletedEvent.OrderItem> items = event.getItems();
+        var previousMdc = MDC.getCopyOfContextMap();
 
-        log.info("[결제 완료 이벤트 수신] orderId: {}, salesId: {}, 상품 수: {}",
-                orderId, salesId, items != null ? items.size() : 0);
+        try {
+            MDC.put("orderId", orderId);
+            MDC.put("salesId", String.valueOf(salesId));
 
-        // 중복 재고 차감 방지 - 원자적 멱등성 체크 (SETNX)
-        if (!tryAcquireIdempotencyLock(orderId)) {
-            log.info("[중복 재고 차감 스킵] 이미 처리된 주문 - orderId: {}, salesId: {}", orderId, salesId);
-            return;
-        }
+            log.info("[결제 완료 이벤트 수신] orderId: {}, salesId: {}, 상품 수: {}",
+                    orderId, salesId, items != null ? items.size() : 0);
 
-        if (items == null || items.isEmpty()) {
-            log.warn("[재고 차감 스킵] 상품 목록 없음 - orderId: {}", orderId);
-            return;
-        }
-
-        // 재고 차감 시도
-        List<Long> successfullyDeducted = new ArrayList<>();
-        List<Integer> deductedQuantities = new ArrayList<>();
-        boolean allSuccess = true;
-        String failureReason = null;
-
-        for (PaymentCompletedEvent.OrderItem item : items) {
+            boolean redisLockAcquired = false;
             try {
-                // Redis에서 재고 차감
-                Integer currentStock = stockCacheService.decreaseStock(item.getProductId(), item.getQuantity());
+                // 중복 재고 차감 방지 - 원자적 멱등성 체크 (SETNX)
+                redisLockAcquired = tryAcquireIdempotencyLock(orderId);
+                if (!redisLockAcquired) {
+                    log.info("[중복 재고 차감 스킵] 이미 처리된 주문 - orderId: {}, salesId: {}", orderId, salesId);
+                    return;
+                }
+            } catch (Exception e) {
+                // Redis 장애 시 DB 멱등성으로 대체
+                log.warn("[Redis 멱등성 스킵] Redis 오류로 DB 멱등성만 사용 - orderId: {}, 에러: {}",
+                        orderId, e.getMessage());
+            }
 
-                successfullyDeducted.add(item.getProductId());
-                deductedQuantities.add(item.getQuantity());
+            if (items == null || items.isEmpty()) {
+                log.warn("[재고 차감 스킵] 상품 목록 없음 - orderId: {}", orderId);
+                return;
+            }
 
-                // Kafka 이벤트 발행 (CONFIRMED 상태로 inventory INSERT)
-                InventoryEvent inventoryEvent = InventoryEvent.builder()
-                        .eventId(UUID.randomUUID().toString())
-                        .productId(item.getProductId())
-                        .quantity(-item.getQuantity())
-                        .changeType("ORDER_DECREASE")
-                        .orderId(orderId)
-                        .status("CONFIRMED")
-                        .occurredAt(LocalDateTime.now())
-                        .currentStock(currentStock)
-                        .build();
-                inventoryEventProducer.publish(inventoryEvent);
+            // 이미 처리된 상품은 스킵 (DB 기반 멱등성 보완)
+            List<PaymentCompletedEvent.OrderItem> pendingItems = new ArrayList<>();
+            int skippedItems = 0;
 
-                log.debug("[재고 차감 성공] orderId: {}, productId: {}, 차감량: {}, 현재재고: {}",
-                        orderId, item.getProductId(), item.getQuantity(), currentStock);
+            for (PaymentCompletedEvent.OrderItem item : items) {
+                if (isAlreadyDeducted(orderId, item.getProductId())) {
+                    skippedItems++;
+                    log.warn("[중복 차감 스킵] orderId: {}, productId: {}", orderId, item.getProductId());
+                    continue;
+                }
+                pendingItems.add(item);
+            }
 
-            } catch (RuntimeException e) {
-                allSuccess = false;
-                failureReason = "상품 " + item.getProductId() + ": " + e.getMessage();
-                log.warn("[재고 차감 실패] orderId: {}, productId: {}, 사유: {}",
-                        orderId, item.getProductId(), e.getMessage());
-                break;
+            if (pendingItems.isEmpty()) {
+                log.info("[중복 재고 차감 스킵] 이미 처리된 주문 - orderId: {}, salesId: {}", orderId, salesId);
+                return;
+            }
+
+            if (skippedItems > 0) {
+                log.info("[중복 차감 일부 스킵] orderId: {}, skipped: {}, pending: {}",
+                        orderId, skippedItems, pendingItems.size());
+            }
+
+            // 재고 차감 시도
+            List<Long> successfullyDeducted = new ArrayList<>();
+            List<Integer> deductedQuantities = new ArrayList<>();
+            boolean allSuccess = true;
+            String failureReason = null;
+
+            for (PaymentCompletedEvent.OrderItem item : pendingItems) {
+                try {
+                    // Redis에서 재고 차감
+                    Integer currentStock = stockCacheService.decreaseStock(item.getProductId(), item.getQuantity());
+
+                    successfullyDeducted.add(item.getProductId());
+                    deductedQuantities.add(item.getQuantity());
+
+                    // Kafka 이벤트 발행 (CONFIRMED 상태로 inventory INSERT)
+                    InventoryEvent inventoryEvent = InventoryEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .productId(item.getProductId())
+                            .quantity(-item.getQuantity())
+                            .changeType("ORDER_DECREASE")
+                            .orderId(orderId)
+                            .status("CONFIRMED")
+                            .occurredAt(LocalDateTime.now())
+                            .currentStock(currentStock)
+                            .build();
+                    inventoryEventProducer.publish(inventoryEvent);
+
+                    log.debug("[재고 차감 성공] orderId: {}, productId: {}, 차감량: {}, 현재재고: {}",
+                            orderId, item.getProductId(), item.getQuantity(), currentStock);
+
+                } catch (RuntimeException e) {
+                    allSuccess = false;
+                    failureReason = "상품 " + item.getProductId() + ": " + e.getMessage();
+                    log.warn("[재고 차감 실패] orderId: {}, productId: {}, 사유: {}",
+                            orderId, item.getProductId(), e.getMessage());
+                    break;
+                }
+            }
+
+            if (allSuccess) {
+                // 성공 - inventory-confirmed 이벤트 발행 (SSE 알림용)
+                InventoryConfirmedEvent confirmedEvent = InventoryConfirmedEvent.of(orderId, salesId);
+                inventoryConfirmedEventProducer.publish(confirmedEvent);
+
+                log.info("[재고 차감 완료] orderId: {}, salesId: {}", orderId, salesId);
+            } else {
+                // 실패 시 멱등성 키 삭제 (재시도 가능하도록)
+                safeReleaseIdempotencyLock(orderId);
+
+                // 이미 차감된 것들 롤백
+                rollbackDeductedStock(orderId, successfullyDeducted, deductedQuantities);
+
+                // inventory-failed 이벤트 발행 → payment-service에서 환불 처리
+                InventoryFailedEvent failedEvent = InventoryFailedEvent.of(orderId, salesId, failureReason);
+                inventoryFailedEventProducer.publish(failedEvent);
+
+                log.warn("[재고 차감 실패 - 환불 요청] orderId: {}, salesId: {}, 사유: {}",
+                        orderId, salesId, failureReason);
+            }
+        } finally {
+            if (previousMdc != null) {
+                MDC.setContextMap(previousMdc);
+            } else {
+                MDC.clear();
             }
         }
+    }
 
-        if (allSuccess) {
-            // 성공 - inventory-confirmed 이벤트 발행 (SSE 알림용)
-            InventoryConfirmedEvent confirmedEvent = InventoryConfirmedEvent.of(orderId, salesId);
-            inventoryConfirmedEventProducer.publish(confirmedEvent);
-
-            log.info("[재고 차감 완료] orderId: {}, salesId: {}", orderId, salesId);
-        } else {
-            // 실패 시 멱등성 키 삭제 (재시도 가능하도록)
-            releaseIdempotencyLock(orderId);
-
-            // 이미 차감된 것들 롤백
-            rollbackDeductedStock(orderId, successfullyDeducted, deductedQuantities);
-
-            // inventory-failed 이벤트 발행 → payment-service에서 환불 처리
-            InventoryFailedEvent failedEvent = InventoryFailedEvent.of(orderId, salesId, failureReason);
-            inventoryFailedEventProducer.publish(failedEvent);
-
-            log.warn("[재고 차감 실패 - 환불 요청] orderId: {}, salesId: {}, 사유: {}",
-                    orderId, salesId, failureReason);
-        }
+    private boolean isAlreadyDeducted(String orderId, Long productId) {
+        return jpaInventoryRepository.existsByOrderIdAndProductIdAndChangeType(
+                orderId,
+                productId,
+                InventoryChangeType.ORDER_DECREASE
+        );
     }
 
     /**
@@ -171,5 +226,14 @@ public class InventoryDeductionService {
         RBucket<String> bucket = redissonClient.getBucket(key);
         bucket.delete();
         log.debug("[멱등성 락 해제] orderId: {}", orderId);
+    }
+
+    private void safeReleaseIdempotencyLock(String orderId) {
+        try {
+            releaseIdempotencyLock(orderId);
+        } catch (Exception e) {
+            log.warn("[멱등성 락 해제 실패] Redis 오류로 해제 스킵 - orderId: {}, 에러: {}",
+                    orderId, e.getMessage());
+        }
     }
 }

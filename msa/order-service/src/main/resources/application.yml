@@ -49,6 +49,16 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: all
+        enable.idempotence: true
+        delivery.timeout.ms: 300000
+        request.timeout.ms: 60000
+        linger.ms: 20
+        batch.size: 65536
+        compression.type: lz4
+        retries: 2147483647
+        max.in.flight.requests.per.connection: 1
 
 server:
   port: 8084
@@ -67,13 +77,21 @@ management:
     web:
       exposure:
         include: "*"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    enable:
+      kafka: true
   tracing:
     enabled: ${TRACING_ENABLED:true}
     sampling:
       probability: 1.0
   otlp:
     tracing:
-      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4318}/v1/traces
 
 logging:
   file:
@@ -81,10 +99,18 @@ logging:
   level:
     root: INFO
     com.project.orderservice: INFO
-    com.zaxxer.hikari: DEBUG
-    com.zaxxer.hikari.pool.HikariPool: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql: TRACE
+    com.zaxxer.hikari: INFO
+    com.zaxxer.hikari.pool.HikariPool: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql: INFO
+    org.springframework.scheduling: INFO
+    org.springframework.kafka: INFO
+    org.apache.kafka: INFO
+    org.springframework.kafka.listener: INFO
+    org.apache.kafka.clients.consumer: INFO
+    org.apache.kafka.clients.NetworkClient: INFO
+    org.apache.kafka.clients.producer: INFO
+    org.springframework.kafka.core: INFO
 
 loki:
   url: http://${LOKI_HOST:localhost}:${LOKI_PORT:3100}/loki/api/v1/push
@@ -117,6 +143,41 @@ kafka:
 # Slack 알림 설정
 slack:
   webhook:
-    url: ${SLACK_WEBHOOK_URL:}
+    url: ${SLACK_WEBHOOK_URL}
   alert:
-    enabled: ${SLACK_ALERT_ENABLED:false}
+    enabled: ${SLACK_ALERT_ENABLED:true}
+
+# DLQ (Dead Letter Queue) 설정
+dlq:
+  enabled: true
+  topic-suffix: .dlq
+  max-retries: 3
+  retry-interval-ms: 1000
+  retry-multiplier: 2.0
+  alert-enabled: true
+  db-enabled: true
+  technical-replay:
+    enabled: true
+    schedule-cron: "0 */5 * * * ?"
+    batch-size: 100
+    max-replay-retries: 3
+  cleanup:
+    enabled: true
+    schedule-cron: "0 0 3 * * ?"
+    retention-days: 30
+  alert-threshold:
+    pending-count: 100
+    check-cron: "0 0 * * * ?"
+
+# Outbox Relay 설정
+outbox:
+  relay:
+    interval-ms: 10000
+    batch-size: 300
+    threshold-minutes: 1
+    max-retries: 2
+    max-age-seconds: 60
+    base-backoff-ms: 1000
+    max-backoff-ms: 60000
+    cleanup-days: 7
+    cleanup-cron: "0 0 3 * * ?"

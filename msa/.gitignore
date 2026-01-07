@@ -4,3 +4,7 @@
 
 # Override file (dev only)
 docker-compose.override.yml
+
+# Local broker data / notes
+docker-data/
+*.md

@@ -10,6 +10,7 @@ spring:
       maximum-pool-size: 20
       minimum-idle: 10
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: false
@@ -34,7 +35,7 @@ spring:
     bootstrap-servers: localhost:9093
     consumer:
       group-id: inventory-group
-      auto-offset-reset: earliest
+      auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     producer:
@@ -64,7 +65,7 @@ management:
       probability: 1.0
   otlp:
     tracing:
-      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4318}/v1/traces
 
 logging:
   file:
@@ -90,3 +91,32 @@ kafka:
     core-pool-size: 5         # ThreadPool 코어 스레드 수
     max-pool-size: 20         # ThreadPool 최대 스레드 수
     acquire-timeout-ms: 30000 # Semaphore acquire 타임아웃 (30초)
+
+# Slack 알림 설정
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL}
+  alert:
+    enabled: ${SLACK_ALERT_ENABLED:true}
+
+# DLQ (Dead Letter Queue) 설정
+dlq:
+  enabled: true
+  topic-suffix: .dlq
+  max-retries: 3
+  retry-interval-ms: 1000
+  retry-multiplier: 2.0
+  alert-enabled: true
+  db-enabled: true
+  technical-replay:
+    enabled: true
+    schedule-cron: "0 */5 * * * ?"
+    batch-size: 100
+    max-replay-retries: 3
+  cleanup:
+    enabled: true
+    schedule-cron: "0 0 3 * * ?"
+    retention-days: 30
+  alert-threshold:
+    pending-count: 100
+    check-cron: "0 0 * * * ?"

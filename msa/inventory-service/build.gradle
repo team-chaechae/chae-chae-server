@@ -94,6 +94,9 @@ dependencies {
 
     // Embedded Redis for testing
     testImplementation 'com.github.codemonstur:embedded-redis:1.4.3'
+
+    // Shared Libraries (DLQ)
+    implementation 'com.project:common-dlq:1.0.0'
 }
 
 dependencyManagement {
