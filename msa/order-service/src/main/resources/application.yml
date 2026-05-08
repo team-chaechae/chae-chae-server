@@ -176,8 +176,9 @@ outbox:
     batch-size: 300
     threshold-minutes: 1
     max-retries: 2
-    max-age-seconds: 60
+    max-age-seconds: 600
     base-backoff-ms: 1000
     max-backoff-ms: 60000
+    send-timeout-seconds: 10
     cleanup-days: 7
     cleanup-cron: "0 0 3 * * ?"

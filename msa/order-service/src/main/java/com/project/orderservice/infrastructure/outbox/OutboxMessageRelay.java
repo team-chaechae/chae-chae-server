@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -43,6 +44,9 @@ public class OutboxMessageRelay {
     @Value("${outbox.relay.max-backoff-ms:60000}")
     private long maxBackoffMs;
 
+    @Value("${outbox.relay.send-timeout-seconds:10}")
+    private long sendTimeoutSeconds;
+
     @Value("${dlq.topic-suffix:.dlq}")
     private String dlqTopicSuffix;
 
@@ -68,10 +72,6 @@ public class OutboxMessageRelay {
         log.info("[Outbox Relay] 재발행 대상 메시지 {}건 발견", messages.size());
 
         for (OutboxEntity outbox : messages) {
-            if (isExpired(outbox)) {
-                sendToDlqAndMarkExpired(outbox);
-                continue;
-            }
             if (!isBackoffElapsed(outbox)) {
                 continue;
             }
@@ -94,33 +94,45 @@ public class OutboxMessageRelay {
         try {
             CompletableFuture<?> sendFuture = stringKafkaTemplate.send(
                 outbox.getTopic(), outbox.getMessageKey(), outbox.getPayload());
-            sendFuture.whenComplete((result, ex) -> {
-                if (ex == null) {
-                    outboxRepository.updateStatusSuccessById(
-                        outbox.getId(),
-                        OutboxStatus.SEND_SUCCESS,
-                        LocalDateTime.now()
-                    );
-                    log.info("[Outbox Relay] 재발행 성공 - topic: {}, key: {}, outboxId: {}, retryCount: {}",
-                        outbox.getTopic(), outbox.getMessageKey(), outbox.getId(), outbox.getRetryCount());
-                } else {
-                    handlePublishFailure(outbox, ex.getMessage());
-                    log.error("[Outbox Relay] 재발행 실패 - outboxId: {}, retryCount: {}, error: {}",
-                        outbox.getId(), outbox.getRetryCount(), ex.getMessage());
-                }
-            });
+            sendFuture.get(sendTimeoutSeconds, TimeUnit.SECONDS);
+            outboxRepository.updateStatusSuccessById(
+                outbox.getId(),
+                OutboxStatus.SEND_SUCCESS,
+                LocalDateTime.now()
+            );
+            log.info("[Outbox Relay] 재발행 성공 - topic: {}, key: {}, outboxId: {}, retryCount: {}",
+                outbox.getTopic(), outbox.getMessageKey(), outbox.getId(), outbox.getRetryCount());
 
         } catch (Exception e) {
-            handlePublishFailure(outbox, e.getMessage());
+            String errorMessage = resolveErrorMessage(e);
+            handlePublishFailure(outbox, errorMessage);
             log.error("[Outbox Relay] 재발행 실패 - outboxId: {}, retryCount: {}, error: {}",
-                outbox.getId(), outbox.getRetryCount(), e.getMessage());
+                outbox.getId(), outbox.getRetryCount(), errorMessage);
         }
     }
 
     private void handlePublishFailure(OutboxEntity outbox, String errorMessage) {
         int nextRetryCount = outbox.getRetryCount() + 1;
-        if (nextRetryCount >= maxRetries) {
-            publishToDlq(outbox, errorMessage);
+        if (nextRetryCount >= maxRetries || isExpired(outbox)) {
+            if (publishToDlq(outbox, errorMessage)) {
+                outboxRepository.updateStatusFailByIdWithRetryCount(
+                    outbox.getId(),
+                    OutboxStatus.SEND_FAIL,
+                    maxRetries,
+                    truncateErrorMessage(errorMessage),
+                    LocalDateTime.now()
+                );
+                return;
+            }
+
+            outboxRepository.updateStatusFailByIdWithRetryCount(
+                outbox.getId(),
+                OutboxStatus.SEND_FAIL,
+                Math.max(0, maxRetries - 1),
+                truncateErrorMessage("DLQ publish failed: " + errorMessage),
+                LocalDateTime.now()
+            );
+            return;
         }
 
         outboxRepository.updateStatusFailById(
@@ -131,29 +143,18 @@ public class OutboxMessageRelay {
         );
     }
 
-    private void sendToDlqAndMarkExpired(OutboxEntity outbox) {
-        String errorMessage = "Expired after " + maxAgeSeconds + " seconds";
-        publishToDlq(outbox, errorMessage);
-        outboxRepository.updateStatusFailByIdWithRetryCount(
-            outbox.getId(),
-            OutboxStatus.SEND_FAIL,
-            maxRetries,
-            truncateErrorMessage(errorMessage),
-            LocalDateTime.now()
-        );
-        log.warn("[Outbox Relay] 만료 DLQ 전송 - outboxId: {}, retryCount: {}, error: {}",
-            outbox.getId(), outbox.getRetryCount(), errorMessage);
-    }
-
-    private void publishToDlq(OutboxEntity outbox, String errorMessage) {
+    private boolean publishToDlq(OutboxEntity outbox, String errorMessage) {
         String dlqTopic = outbox.getTopic() + dlqTopicSuffix;
         try {
-            stringKafkaTemplate.send(dlqTopic, outbox.getMessageKey(), outbox.getPayload());
+            stringKafkaTemplate.send(dlqTopic, outbox.getMessageKey(), outbox.getPayload())
+                .get(sendTimeoutSeconds, TimeUnit.SECONDS);
             log.error("[Outbox Relay] DLQ 전송 - topic: {}, outboxId: {}, error: {}",
                 dlqTopic, outbox.getId(), errorMessage);
+            return true;
         } catch (Exception e) {
             log.error("[Outbox Relay] DLQ 전송 실패 - topic: {}, outboxId: {}, error: {}",
-                dlqTopic, outbox.getId(), e.getMessage());
+                dlqTopic, outbox.getId(), resolveErrorMessage(e));
+            return false;
         }
     }
 
@@ -188,5 +189,20 @@ public class OutboxMessageRelay {
             return null;
         }
         return message.length() > 500 ? message.substring(0, 500) : message;
+    }
+
+    private String resolveErrorMessage(Exception exception) {
+        Throwable cause = exception;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        if (message == null || message.isBlank()) {
+            message = exception.getMessage();
+        }
+        if (message == null || message.isBlank()) {
+            return cause.getClass().getSimpleName();
+        }
+        return message;
     }
 }

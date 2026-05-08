@@ -57,6 +57,7 @@ class OutboxPatternTest {
         ReflectionTestUtils.setField(outboxMessageRelay, "maxAgeSeconds", 3600L);
         ReflectionTestUtils.setField(outboxMessageRelay, "baseBackoffMs", 1000L);
         ReflectionTestUtils.setField(outboxMessageRelay, "maxBackoffMs", 60000L);
+        ReflectionTestUtils.setField(outboxMessageRelay, "sendTimeoutSeconds", 10L);
         ReflectionTestUtils.setField(outboxMessageRelay, "dlqTopicSuffix", ".dlq");
         ReflectionTestUtils.setField(outboxMessageRelay, "cleanupDays", 7);
     }

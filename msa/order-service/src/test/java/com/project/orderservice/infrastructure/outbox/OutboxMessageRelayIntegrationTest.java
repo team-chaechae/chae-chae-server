@@ -66,6 +66,7 @@ class OutboxMessageRelayIntegrationTest {
         ReflectionTestUtils.setField(outboxMessageRelay, "maxAgeSeconds", 3600L);
         ReflectionTestUtils.setField(outboxMessageRelay, "baseBackoffMs", 1000L);
         ReflectionTestUtils.setField(outboxMessageRelay, "maxBackoffMs", 60000L);
+        ReflectionTestUtils.setField(outboxMessageRelay, "sendTimeoutSeconds", 10L);
         ReflectionTestUtils.setField(outboxMessageRelay, "dlqTopicSuffix", ".dlq");
         ReflectionTestUtils.setField(outboxMessageRelay, "cleanupDays", 7);
     }
@@ -194,6 +195,66 @@ class OutboxMessageRelayIntegrationTest {
                     any(LocalDateTime.class)
             );
             assertThat(outbox.getRetryCount()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("maxAge를 넘긴 INIT 메시지도 재시도 가능하면 원본 토픽으로 먼저 재발행한다")
+        void expiredButRetryableMessage_RelaysToOriginalTopicBeforeDlq() {
+            // given
+            ReflectionTestUtils.setField(outboxMessageRelay, "maxAgeSeconds", 60L);
+            OutboxEntity outbox = createTestOutbox("order-expired-retryable");
+            ReflectionTestUtils.setField(outbox, "createdAt", LocalDateTime.now().minusMinutes(2));
+
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
+                    .willReturn(List.of(outbox));
+            given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
+                    .willReturn(createSuccessFuture());
+
+            // when
+            outboxMessageRelay.relayFailedMessages();
+
+            // then
+            verify(stringKafkaTemplate).send("order-created", "order-expired-retryable", outbox.getPayload());
+            verify(stringKafkaTemplate, never()).send(eq("order-created.dlq"), anyString(), anyString());
+            verify(outboxRepository).updateStatusSuccessById(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_SUCCESS),
+                    any(LocalDateTime.class)
+            );
+        }
+
+        @Test
+        @DisplayName("최종 재시도 실패 후 DLQ 전송이 실패하면 재시도 가능 상태로 남긴다")
+        void finalRetryFailure_DlqPublishFailure_KeepsMessageRetryable() {
+            // given
+            ReflectionTestUtils.setField(outboxMessageRelay, "maxRetries", 2);
+            OutboxEntity outbox = createTestOutbox("order-dlq-failure");
+            outbox.markAsSendFail("Previous failure");
+
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
+                    .willReturn(List.of(outbox));
+            given(stringKafkaTemplate.send(eq("order-created"), eq("order-dlq-failure"), anyString()))
+                    .willReturn(createFailureFuture("Original publish timeout"));
+            given(stringKafkaTemplate.send(eq("order-created.dlq"), eq("order-dlq-failure"), anyString()))
+                    .willReturn(createFailureFuture("DLQ publish timeout"));
+
+            // when
+            outboxMessageRelay.relayFailedMessages();
+
+            // then
+            verify(outboxRepository).updateStatusFailByIdWithRetryCount(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_FAIL),
+                    eq(1),
+                    contains("DLQ publish failed"),
+                    any(LocalDateTime.class)
+            );
+            verify(outboxRepository, never()).updateStatusFailById(
+                    eq(outbox.getId()),
+                    any(),
+                    anyString(),
+                    any(LocalDateTime.class)
+            );
         }
 
         @Test
