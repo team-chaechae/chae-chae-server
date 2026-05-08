@@ -71,7 +71,8 @@ public class JwtUtil {
         try {
             return jwtParser.parseClaimsJws(token).getBody();
         } catch (ExpiredJwtException e) {
-            return e.getClaims();
+            log.warn("[JWT 검증] 만료된 JWT 토큰입니다");
+            return null;
         } catch (Exception e) {
             return null;
         }
