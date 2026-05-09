@@ -6,15 +6,14 @@ import com.project.orderservice.domain.model.OutboxEntity.OutboxStatus;
 import com.project.orderservice.domain.repository.OutboxRepository;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OrderEventSendService {
 
     private static final String TOPIC_ORDER_CREATED = "order-created";
@@ -24,6 +23,16 @@ public class OrderEventSendService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+
+    public OrderEventSendService(
+            @Qualifier("stringKafkaTemplate") KafkaTemplate<String, String> kafkaTemplate,
+            OutboxRepository outboxRepository,
+            ObjectMapper objectMapper
+    ) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public void sendOrderCreated(OrderCreatedInternalEvent event) {
         var previousMdc = MDC.getCopyOfContextMap();

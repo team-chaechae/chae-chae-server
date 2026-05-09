@@ -25,6 +25,12 @@ public class SalesRepositoryImpl implements SalesRepository {
 
     @Override
     public SalesEntity findSalesBySalesId(Long salesId) {
+        return jpaSalesRepository.findByIdWithItemsAndDeletedAtIsNull(salesId)
+                .orElseThrow(() -> new EntityNotFoundException("유효하지 않은 판매 정보입니다."));
+    }
+
+    @Override
+    public SalesEntity findSalesBySalesIdSimple(Long salesId) {
         return jpaSalesRepository.findByIdAndDeletedAtIsNull(salesId)
                 .orElseThrow(() -> new EntityNotFoundException("유효하지 않은 판매 정보입니다."));
     }
