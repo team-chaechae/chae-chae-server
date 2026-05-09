@@ -31,16 +31,16 @@ class SalesServiceIdempotencyTest {
     @Mock
     private SalesRepository salesRepository;
 
-    private SalesTransactionalService salesService;
+    private SalesServiceImpl salesService;
 
     private String orderId;
     private Long salesId;
 
     @BeforeEach
     void setUp() {
-        // SalesTransactionalService에 필요한 의존성들을 최소 구성으로 설정
-        salesService = new SalesTransactionalService(
+        salesService = new SalesServiceImpl(
                 salesRepository,
+                null, // productCacheClient
                 null, // eventPublisher
                 new SimpleMeterRegistry()
         );
@@ -97,6 +97,21 @@ class SalesServiceIdempotencyTest {
 
             // then
             assertThat(pendingSales.getStatus()).isEqualTo(SalesStatus.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("이미 취소된 주문은 완료 처리하지 않는다")
+        void completeSales_CancelledOrder_NoChange() {
+            // given
+            SalesEntity cancelledSales = createSalesEntity(SalesStatus.CANCELLED);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(cancelledSales);
+
+            // when
+            salesService.completeSales(salesId, orderId);
+
+            // then
+            assertThat(cancelledSales.getStatus()).isEqualTo(SalesStatus.CANCELLED);
+            assertThat(cancelledSales.getFailureReason()).isEqualTo("테스트 취소");
         }
 
         @Test
@@ -169,6 +184,21 @@ class SalesServiceIdempotencyTest {
             // then
             assertThat(pendingSales.getStatus()).isEqualTo(SalesStatus.CANCELLED);
             assertThat(pendingSales.getFailureReason()).isEqualTo("재고 부족");
+        }
+
+        @Test
+        @DisplayName("이미 완료된 주문은 취소 처리하지 않는다")
+        void cancelSales_CompletedOrder_NoChange() {
+            // given
+            SalesEntity completedSales = createSalesEntity(SalesStatus.COMPLETED);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(completedSales);
+
+            // when
+            salesService.cancelSales(salesId, orderId, "늦게 도착한 취소 이벤트");
+
+            // then
+            assertThat(completedSales.getStatus()).isEqualTo(SalesStatus.COMPLETED);
+            assertThat(completedSales.getFailureReason()).isNull();
         }
 
         @Test

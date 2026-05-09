@@ -415,6 +415,28 @@ class OutboxMessageRelayIntegrationTest {
             verify(stringKafkaTemplate, never()).send(anyString(), anyString(), anyString());
             assertThat(exhausted.canRetry(3)).isFalse();
         }
+
+        @Test
+        @DisplayName("Kafka 즉시 발행 성공 후 Outbox가 INIT로 남아 있으면 Relay가 같은 메시지를 중복 발행한다")
+        void alreadyPublishedButOutboxStillInit_RelayPublishesDuplicateMessage() {
+            // given - OrderEventSendService에서 Kafka 발행은 성공했지만 SEND_SUCCESS 업데이트가 실패한 상태
+            OutboxEntity outbox = createTestOutbox("order-duplicate");
+            given(outboxRepository.findMessagesForRetry(anyList(), any(), anyInt(), any()))
+                    .willReturn(List.of(outbox));
+            given(stringKafkaTemplate.send(anyString(), anyString(), anyString()))
+                    .willReturn(createSuccessFuture());
+
+            // when
+            outboxMessageRelay.relayFailedMessages();
+
+            // then - 이미 한 번 발행된 메시지라도 INIT로 남아 있으면 Relay가 다시 Kafka로 발행한다.
+            verify(stringKafkaTemplate).send("order-created", "order-duplicate", outbox.getPayload());
+            verify(outboxRepository).updateStatusSuccessById(
+                    eq(outbox.getId()),
+                    eq(OutboxStatus.SEND_SUCCESS),
+                    any(LocalDateTime.class)
+            );
+        }
     }
 
     private OutboxEntity createTestOutbox(String aggregateId) {
