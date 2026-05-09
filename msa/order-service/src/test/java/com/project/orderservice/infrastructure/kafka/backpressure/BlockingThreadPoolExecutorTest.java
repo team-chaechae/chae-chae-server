@@ -112,6 +112,42 @@ class BlockingThreadPoolExecutorTest {
     }
 
     @Test
+    @DisplayName("Semaphore 대기 시간이 Kafka listener 호출 스레드를 acquireTimeoutMs만큼 블로킹한다")
+    void execute_BlocksKafkaListenerThreadUntilAcquireTimeout_WhenSemaphoreFull() throws Exception {
+        // given - Kafka listener 스레드가 execute()를 호출하는 상황을 재현한다.
+        executor.destroy();
+        executor = new BlockingThreadPoolExecutor(
+                1, 1, 1, 250,
+                new LinkedBlockingQueue<>(100),
+                Executors.defaultThreadFactory()
+        );
+
+        CountDownLatch releaseRunningTask = new CountDownLatch(1);
+        executor.execute(() -> {
+            try {
+                releaseRunningTask.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        Thread.sleep(50);
+
+        // when
+        long startedAt = System.nanoTime();
+        assertThatThrownBy(() -> executor.execute(() -> {}))
+                .isInstanceOf(RejectedExecutionException.class)
+                .hasMessageContaining("timeout");
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+
+        // then - 호출 스레드가 timeout까지 반환하지 못한다. 실제 Kafka consumer 스레드라면 poll/heartbeat도 지연된다.
+        assertThat(elapsedMs).isGreaterThanOrEqualTo(220);
+
+        // cleanup
+        releaseRunningTask.countDown();
+    }
+
+    @Test
     @DisplayName("작업 완료 후 Semaphore가 해제되어 새 작업 수락")
     void execute_ReleasesSemaphore_AfterTaskCompletion() throws InterruptedException {
         // given
