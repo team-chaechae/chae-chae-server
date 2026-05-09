@@ -1,0 +1,184 @@
+spring:
+  application:
+    name: order-service
+  cloud:
+    openfeign:
+      micrometer:
+        enabled: true
+      httpclient:
+        hc5:
+          enabled: true
+          pool-reuse-policy: fifo
+          pool-concurrency-policy: strict
+        max-connections: 200
+        max-connections-per-route: 50
+  datasource:
+    url: jdbc:mysql://localhost:3310/order_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    open-in-view: false
+  data:
+    redis:
+      sentinel:
+        master: mymaster
+        nodes:
+          - ${REDIS_SENTINEL_1:localhost}:${REDIS_SENTINEL_PORT_1:26379}
+          - ${REDIS_SENTINEL_2:localhost}:${REDIS_SENTINEL_PORT_2:26380}
+          - ${REDIS_SENTINEL_3:localhost}:${REDIS_SENTINEL_PORT_3:26381}
+
+  kafka:
+    bootstrap-servers: localhost:9093
+    consumer:
+      group-id: order-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: all
+        enable.idempotence: true
+        delivery.timeout.ms: 300000
+        request.timeout.ms: 60000
+        linger.ms: 20
+        batch.size: 65536
+        compression.type: lz4
+        retries: 2147483647
+        max.in.flight.requests.per.connection: 1
+
+server:
+  port: 8084
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    enable:
+      kafka: true
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4318}/v1/traces
+
+logging:
+  file:
+    name: logs/order.log
+  level:
+    root: INFO
+    com.project.orderservice: INFO
+    com.zaxxer.hikari: INFO
+    com.zaxxer.hikari.pool.HikariPool: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql: INFO
+    org.springframework.scheduling: INFO
+    org.springframework.kafka: INFO
+    org.apache.kafka: INFO
+    org.springframework.kafka.listener: INFO
+    org.apache.kafka.clients.consumer: INFO
+    org.apache.kafka.clients.NetworkClient: INFO
+    org.apache.kafka.clients.producer: INFO
+    org.springframework.kafka.core: INFO
+
+loki:
+  url: http://${LOKI_HOST:localhost}:${LOKI_PORT:3100}/loki/api/v1/push
+
+# Saga 설정
+saga:
+  timeout:
+    inventory-reserve: 30       # 재고 예약 타임아웃 (초)
+    payment-process: 120        # 결제 처리 타임아웃 (초)
+    inventory-confirm: 30       # 재고 확정 타임아웃 (초)
+    total-minutes: 15           # Saga 전체 타임아웃 (분)
+    reservation-ttl-minutes: 15 # Redis 예약 TTL (분)
+    compensation-minutes: 5     # 보상 트랜잭션 타임아웃 (분)
+  retry:
+    max-count: 3                # 최대 재시도 횟수
+    interval-ms: 1000           # 재시도 간격 (밀리초)
+  scheduler:
+    timeout-check-interval-ms: 60000   # 타임아웃 체크 주기 (1분)
+    stuck-check-interval-ms: 300000    # 멈춤 체크 주기 (5분)
+    recovery-interval-ms: 300000       # 복구 주기 (5분)
+
+# Kafka 백프레셔 설정
+kafka:
+  backpressure:
+    max-permits: 50
+    core-pool-size: 5
+    max-pool-size: 20
+    acquire-timeout-ms: 30000
+
+# Slack 알림 설정
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL}
+  alert:
+    enabled: ${SLACK_ALERT_ENABLED:true}
+
+# DLQ (Dead Letter Queue) 설정
+dlq:
+  enabled: true
+  topic-suffix: .dlq
+  max-retries: 3
+  retry-interval-ms: 1000
+  retry-multiplier: 2.0
+  alert-enabled: true
+  db-enabled: true
+  technical-replay:
+    enabled: true
+    schedule-cron: "0 */5 * * * ?"
+    batch-size: 100
+    max-replay-retries: 3
+  cleanup:
+    enabled: true
+    schedule-cron: "0 0 3 * * ?"
+    retention-days: 30
+  alert-threshold:
+    pending-count: 100
+    check-cron: "0 0 * * * ?"
+
+# Outbox Relay 설정
+outbox:
+  relay:
+    interval-ms: 10000
+    batch-size: 300
+    threshold-minutes: 1
+    max-retries: 2
+    max-age-seconds: 600
+    base-backoff-ms: 1000
+    max-backoff-ms: 60000
+    send-timeout-seconds: 10
+    cleanup-days: 7
+    cleanup-cron: "0 0 3 * * ?"

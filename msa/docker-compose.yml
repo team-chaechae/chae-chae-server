@@ -1,0 +1,720 @@
+
+name: msa-chae-chae
+
+services:
+  # ============================================
+  # INFRASTRUCTURE SERVICES (profile: infra)
+  # ============================================
+
+  # MySQL Databases
+  mysql-user:
+    image: mysql:8.0
+    container_name: msa-mysql-user
+    profiles: [infra]
+    env_file:
+      - .env.user.mysql
+    ports:
+      - "3307:3306"
+    volumes:
+      - msa-mysql-user-data:/var/lib/mysql
+    networks:
+      - msa-network
+
+  mysql-product:
+    image: mysql:8.0
+    container_name: msa-mysql-product
+    profiles: [infra]
+    env_file:
+      - .env.product.mysql
+    ports:
+      - "3308:3306"
+    volumes:
+      - msa-mysql-product-data:/var/lib/mysql
+    networks:
+      - msa-network
+
+  mysql-inventory:
+    image: mysql:8.0
+    container_name: msa-mysql-inventory
+    profiles: [infra]
+    env_file:
+      - .env.inventory.mysql
+    ports:
+      - "3309:3306"
+    volumes:
+      - msa-mysql-inventory-data:/var/lib/mysql
+    networks:
+      - msa-network
+
+  mysql-order:
+    image: mysql:8.0
+    container_name: msa-mysql-order
+    profiles: [infra]
+    env_file:
+      - .env.order.mysql
+    ports:
+      - "3310:3306"
+    volumes:
+      - msa-mysql-order-data:/var/lib/mysql
+    networks:
+      - msa-network
+
+
+  mysql-payment:
+    image: mysql:8.0
+    container_name: msa-mysql-payment
+    profiles: [infra]
+    env_file:
+      - .env.payment
+    ports:
+      - "3312:3306"
+    volumes:
+      - msa-mysql-payment-data:/var/lib/mysql
+    networks:
+      - msa-network
+
+  # Redis Master
+  redis-master:
+    image: redis:7-alpine
+    container_name: msa-redis-master
+    profiles: [infra]
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    networks:
+      - msa-network
+
+  # Redis Slave
+  redis-slave:
+    image: redis:7-alpine
+    container_name: msa-redis-slave
+    profiles: [infra]
+    command: redis-server --appendonly yes --replicaof redis-master 6379
+    depends_on:
+      - redis-master
+    ports:
+      - "6381:6379"
+    networks:
+      - msa-network
+
+  # Redis Sentinel 1
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: msa-redis-sentinel-1
+    profiles: [infra]
+    command: >
+      sh -c "sleep 5 &&
+             echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
+             echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26379' >> /etc/sentinel.conf &&
+             echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
+             echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
+             echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
+             echo 'sentinel parallel-syncs mymaster 1' >> /etc/sentinel.conf &&
+             redis-sentinel /etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave
+    ports:
+      - "26379:26379"
+    networks:
+      - msa-network
+
+  # Redis Sentinel 2
+  redis-sentinel-2:
+    image: redis:7-alpine
+    container_name: msa-redis-sentinel-2
+    profiles: [infra]
+    command: >
+      sh -c "sleep 5 &&
+             echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
+             echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26380' >> /etc/sentinel.conf &&
+             echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
+             echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
+             echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
+             echo 'sentinel parallel-syncs mymaster 1' >> /etc/sentinel.conf &&
+             redis-sentinel /etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave
+    ports:
+      - "26380:26379"
+    networks:
+      - msa-network
+
+  # Redis Sentinel 3
+  redis-sentinel-3:
+    image: redis:7-alpine
+    container_name: msa-redis-sentinel-3
+    profiles: [infra]
+    command: >
+      sh -c "sleep 5 &&
+             echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
+             echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26381' >> /etc/sentinel.conf &&
+             echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
+             echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
+             echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
+             echo 'sentinel parallel-syncs mymaster 1' >> /etc/sentinel.conf &&
+             redis-sentinel /etc/sentinel.conf"
+    depends_on:
+      - redis-master
+      - redis-slave
+    ports:
+      - "26381:26379"
+    networks:
+      - msa-network
+
+  # Zookeeper (for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: msa-zookeeper
+    profiles: [infra]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2182:2181"
+    networks:
+      - msa-network
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: msa-kafka
+    profiles: [infra]
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+      - "9999:9999"
+    volumes:
+      - ./docker-data/kafka-1:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka
+      JMX_PORT: 9999
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+    networks:
+      - msa-network
+
+  # Kafka (Broker 2)
+  kafka-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: msa-kafka-2
+    profiles: [infra]
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9093"
+      - "10000:9999"
+    volumes:
+      - ./docker-data/kafka-2:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:9092,EXTERNAL://localhost:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: kafka-2
+      JMX_PORT: 9999
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+    networks:
+      - msa-network
+
+  # Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: msa-kafka-ui
+    profiles: [infra]
+    depends_on:
+      - kafka
+    ports:
+      - "8989:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: msa-kafka-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_METRICS_TYPE: JMX
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9999
+    networks:
+      - msa-network
+
+  # ============================================
+  # MONITORING SERVICES (profile: monitoring)
+  # ============================================
+
+  # MySQL Exporters
+  mysql-exporter-user:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: msa-mysql-exporter-user
+    profiles: [monitoring]
+    environment:
+      DATA_SOURCE_NAME: "root:password@(mysql-user:3306)/user_db"
+    ports:
+      - "9104:9104"
+    depends_on:
+      - mysql-user
+    networks:
+      - msa-network
+
+  mysql-exporter-product:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: msa-mysql-exporter-product
+    profiles: [monitoring]
+    environment:
+      DATA_SOURCE_NAME: "root:password@(mysql-product:3306)/product_db"
+    ports:
+      - "9105:9104"
+    depends_on:
+      - mysql-product
+    networks:
+      - msa-network
+
+  mysql-exporter-inventory:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: msa-mysql-exporter-inventory
+    profiles: [monitoring]
+    environment:
+      DATA_SOURCE_NAME: "root:password@(mysql-inventory:3306)/inventory_db"
+    ports:
+      - "9106:9104"
+    depends_on:
+      - mysql-inventory
+    networks:
+      - msa-network
+
+  mysql-exporter-order:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: msa-mysql-exporter-order
+    profiles: [monitoring]
+    environment:
+      DATA_SOURCE_NAME: "root:password@(mysql-order:3306)/order_db"
+    ports:
+      - "9107:9104"
+    depends_on:
+      - mysql-order
+    networks:
+      - msa-network
+
+
+  mysql-exporter-payment:
+    image: prom/mysqld-exporter:v0.14.0
+    container_name: msa-mysql-exporter-payment
+    profiles: [monitoring]
+    environment:
+      DATA_SOURCE_NAME: "root:password@(mysql-payment:3306)/payment_db"
+    ports:
+      - "9109:9104"
+    depends_on:
+      - mysql-payment
+    networks:
+      - msa-network
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: msa-redis-exporter
+    profiles: [monitoring]
+    environment:
+      REDIS_ADDR: "redis-master:6379"
+    ports:
+      - "9122:9121"
+    depends_on:
+      - redis-master
+    networks:
+      - msa-network
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: msa-prometheus
+    profiles: [monitoring]
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - mysql-exporter-user
+      - mysql-exporter-product
+      - mysql-exporter-inventory
+      - mysql-exporter-order
+      - redis-exporter
+    networks:
+      - msa-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: msa-grafana
+    profiles: [monitoring]
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - msa-network
+
+  # Kafka Exporter (for Prometheus/Grafana)
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: msa-kafka-exporter
+    profiles: [monitoring]
+    command:
+      - --kafka.server=kafka:9092
+    ports:
+      - "9308:9308"
+    depends_on:
+      - kafka
+    networks:
+      - msa-network
+
+  # Tempo (Distributed Tracing)
+  tempo:
+    image: grafana/tempo:latest
+    container_name: msa-tempo
+    profiles: [monitoring]
+    command: ["-config.file=/etc/tempo.yml"]
+    user: "0:0"
+    volumes:
+      - ./monitoring/tempo.yml:/etc/tempo.yml
+      - msa-tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo API
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - msa-network
+
+  # Loki (Log Aggregation)
+  loki:
+    image: grafana/loki:latest
+    container_name: msa-loki
+    profiles: [monitoring]
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./monitoring/loki.yml:/etc/loki/loki.yml
+      - msa-loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - msa-network
+
+  # Promtail (Log Collection Agent)
+  # Production: Docker 볼륨에서 로그 수집
+  # Dev: docker-compose.override.yml에서 로컬 경로로 오버라이드
+  promtail:
+    image: grafana/promtail:latest
+    container_name: msa-promtail
+    profiles: [monitoring]
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    volumes:
+      - ./monitoring/promtail.yml:/etc/promtail/promtail.yml
+      - msa-logs:/logs:ro  # Production: Docker 볼륨
+    depends_on:
+      - loki
+    networks:
+      - msa-network
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: msa-otel-collector
+    profiles: [monitoring]
+    command: ["--config=/etc/otel-collector.yml"]
+    volumes:
+      - ./monitoring/otel-collector.yml:/etc/otel-collector.yml
+    ports:
+      - "4327:4317"   # OTLP gRPC (앱에서 보내는 포트)
+      - "4328:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics (collector 자체)
+      - "8889:8889"   # Prometheus exporter (앱 메트릭)
+    depends_on:
+      - tempo
+      - loki
+    networks:
+      - msa-network
+
+  # Burrow (Kafka Consumer Lag Monitoring)
+  # 사용하려면: git clone https://github.com/linkedin/Burrow ./monitoring/burrow-src && docker-compose build burrow
+  burrow:
+    build:
+      context: ./monitoring/burrow-src
+      dockerfile: Dockerfile
+    container_name: msa-burrow
+    profiles: [monitoring]
+    ports:
+      - "8100:8000"
+    volumes:
+      - ./monitoring/burrow.toml:/etc/burrow/burrow.toml
+    command: ["/app/burrow", "--config-dir", "/etc/burrow"]
+    depends_on:
+      - kafka
+      - zookeeper
+    networks:
+      - msa-network
+
+  # ============================================
+  # APPLICATION SERVICES (profile: app)
+  # ============================================
+
+  # Eureka Server (Service Discovery)
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: msa-eureka-server
+    profiles: [app]
+    ports:
+      - "8861:8761"
+    networks:
+      - msa-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: msa-api-gateway
+    profiles: [app]
+    ports:
+      - "8180:8080"
+    depends_on:
+      - eureka-server
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
+    env_file:
+      - env.secret.key
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+    networks:
+      - msa-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: msa-user-service
+    profiles: [app]
+    ports:
+      - "8181:8081"
+    depends_on:
+      - eureka-server
+      - mysql-user
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
+    env_file:
+      - env.mysql.user
+      - env.secret.key
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-user:3306/user_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+    networks:
+      - msa-network
+
+  # Product Service
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: msa-product-service
+    profiles: [app]
+    ports:
+      - "8182:8082"
+    depends_on:
+      - eureka-server
+      - mysql-product
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
+    env_file:
+      - env.mysql.product
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-product:3306/product_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+    networks:
+      - msa-network
+
+  # Inventory Service (스케일링 가능)
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    profiles: [app]
+    deploy:
+      replicas: 3
+    depends_on:
+      - eureka-server
+      - mysql-inventory
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
+      - kafka
+    env_file:
+      - env.mysql.inventory
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-inventory:3306/inventory_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
+    networks:
+      - msa-network
+
+  # Order Service (스케일링 가능)
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    profiles: [app]
+    deploy:
+      replicas: 2
+    depends_on:
+      - eureka-server
+      - mysql-order
+      - redis-master
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
+      - kafka
+    env_file:
+      - env.mysql.order
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-order:3306/order_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - REDIS_SENTINEL_1=redis-sentinel-1
+      - REDIS_SENTINEL_2=redis-sentinel-2
+      - REDIS_SENTINEL_3=redis-sentinel-3
+      - REDIS_SENTINEL_PORT_1=26379
+      - REDIS_SENTINEL_PORT_2=26379
+      - REDIS_SENTINEL_PORT_3=26379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
+    networks:
+      - msa-network
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    profiles: [app]
+    deploy:
+      replicas: 2
+    depends_on:
+      - eureka-server
+      - mysql-payment
+      - kafka
+    env_file:
+      - .env.payment
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-payment:3306/payment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
+    networks:
+      - msa-network
+
+  # Chatbot Service
+  chatbot-service:
+    build:
+      context: ./chatbot-service
+      dockerfile: Dockerfile
+    container_name: msa-chatbot-service
+    profiles: [app]
+    ports:
+      - "8185:8085"
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - CHATBOT_BASE-URL_FAST-API=http://host.docker.internal:8000
+    networks:
+      - msa-network
+
+volumes:
+  msa-mysql-user-data:
+  msa-mysql-product-data:
+  msa-mysql-inventory-data:
+  msa-mysql-order-data:
+  msa-mysql-payment-data:
+  msa-tempo-data:
+  msa-loki-data:
+  msa-logs:
+
+networks:
+  msa-network:
+    driver: bridge

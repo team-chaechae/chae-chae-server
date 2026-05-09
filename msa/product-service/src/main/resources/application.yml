@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: product-service
+  datasource:
+    url: jdbc:mysql://localhost:3308/product_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  data:
+    redis:
+      sentinel:
+        master: mymaster
+        nodes:
+          - ${REDIS_SENTINEL_1:localhost}:${REDIS_SENTINEL_PORT_1:26379}
+          - ${REDIS_SENTINEL_2:localhost}:${REDIS_SENTINEL_PORT_2:26380}
+          - ${REDIS_SENTINEL_3:localhost}:${REDIS_SENTINEL_PORT_3:26381}
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=600s
+
+  kafka:
+    bootstrap-servers: localhost:9093
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+server:
+  port: 8082
+  shutdown: graceful
+
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    prometheus:
+      access: unrestricted
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:${OTEL_COLLECTOR_PORT:4328}/v1/traces
+
+logging:
+  file:
+    name: logs/product.log
+  level:
+    root: INFO
+    com.project.productservice: INFO
+
+# Outbox Message Relay 설정 (29CM 방식)
+outbox:
+  relay:
+    interval-ms: 60000           # 재발행 체크 간격 (1분)
+    threshold-minutes: 10        # 이 시간 이상 지난 미처리 메시지만 재발행
+    batch-size: 100              # 한 번에 처리할 메시지 수
+    max-retries: 3               # 최대 재시도 횟수
+    cleanup-days: 7              # 처리 완료 메시지 보관 기간
+    cleanup-cron: "0 0 3 * * ?"  # 정리 작업 스케줄 (매일 새벽 3시)

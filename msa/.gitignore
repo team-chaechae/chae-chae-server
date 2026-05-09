@@ -1,0 +1,28 @@
+# Logs (keep directory structure, ignore contents)
+**/logs/*.log
+**/logs/*.log.*
+
+# Override file (dev only)
+docker-compose.override.yml
+.codex/
+
+# Local broker data / notes
+docker-data/
+*.md
+
+# JMeter local test artifacts
+jmeter/report/
+jmeter/backup-jars/
+jmeter/*.jtl
+jmeter/*.jmx
+jmeter/*.log
+jmeter/log4j2-cli.xml
+
+# Local generated monitoring / Kafka artifacts
+kafka-reassign-*.json
+monitoring/grafana/*dashboard*.json
+monitoring/burrow-src/
+
+# Shared library local build artifacts
+shared-libs/common-dlq/build/
+shared-libs/.gradle/

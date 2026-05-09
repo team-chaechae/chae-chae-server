@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'spring-boot-app'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+
+  - job_name: 'mysql'
+    static_configs:
+      - targets: [ 'mysql-exporter-chae-chae:9104' ]
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: [ 'redis-exporter-chae-chae:9121' ]
+    scrape_interval: 5s
+    metrics_path: /metrics
+
