@@ -17,6 +17,7 @@ public class PaymentRefundedEvent {
     private String eventId;
     private String orderId;
     private Long salesId;
+    private String reason;
     private LocalDateTime refundedAt;
 
     public static PaymentRefundedEvent of(String orderId, Long salesId) {

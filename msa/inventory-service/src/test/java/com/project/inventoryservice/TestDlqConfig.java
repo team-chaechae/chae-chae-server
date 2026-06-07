@@ -1,8 +1,5 @@
 package com.project.inventoryservice;
 
-import com.project.common.dlq.handler.DlqErrorHandler;
-import org.mockito.Mockito;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
@@ -12,9 +9,4 @@ import org.springframework.context.annotation.Profile;
 @Configuration
 @Profile("test")
 public class TestDlqConfig {
-
-    @Bean
-    public DlqErrorHandler dlqErrorHandler() {
-        return Mockito.mock(DlqErrorHandler.class);
-    }
 }

@@ -50,7 +50,8 @@ public class InventoryFailedEventConsumer {
                 } catch (Exception e) {
                     log.error("[환불 처리 실패] orderId: {}, salesId: {}, 에러: {}",
                             orderId, salesId, e.getMessage());
-                    ack.acknowledge();  // 중복 환불 방지
+                    // ack하지 않아 offset commit을 막고 재처리 가능 상태로 둔다.
+                    // 환불 처리는 salesId/paymentKey 기반 멱등성으로 중복 처리를 방어한다.
                 }
             });
         } catch (RejectedExecutionException e) {

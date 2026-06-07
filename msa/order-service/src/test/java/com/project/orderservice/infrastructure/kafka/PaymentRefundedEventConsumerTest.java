@@ -2,6 +2,9 @@ package com.project.orderservice.infrastructure.kafka;
 
 import com.project.orderservice.application.service.SalesService;
 import com.project.orderservice.infrastructure.alert.SlackAlertService;
+import com.project.orderservice.application.response.ResSalesGetByIdDTO;
+import com.project.orderservice.infrastructure.client.InventoryFeignClient;
+import com.project.orderservice.infrastructure.client.dto.InventoryChangeDTO;
 import com.project.orderservice.infrastructure.kafka.backpressure.BlockingThreadPoolExecutor;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentRefundedEvent;
 import com.project.orderservice.infrastructure.sse.NotificationEvent;
@@ -16,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.support.Acknowledgment;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -25,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 /**
@@ -50,6 +55,9 @@ class PaymentRefundedEventConsumerTest {
     @Mock
     private Acknowledgment acknowledgment;
 
+    @Mock
+    private InventoryFeignClient inventoryFeignClient;
+
     private PaymentRefundedEventConsumer consumer;
     private BlockingThreadPoolExecutor executor;
 
@@ -61,7 +69,7 @@ class PaymentRefundedEventConsumerTest {
                 Executors.defaultThreadFactory()
         );
         consumer = new PaymentRefundedEventConsumer(
-                salesService, executor, slackAlertService, sseEmitterRegistry
+                salesService, executor, slackAlertService, sseEmitterRegistry, inventoryFeignClient
         );
     }
 
@@ -98,11 +106,87 @@ class PaymentRefundedEventConsumerTest {
 
         // SalesService.cancelSales() 호출 확인
         verify(salesService, times(1)).cancelSales(eq(salesId), eq(orderId), anyString());
+        verifyNoInteractions(inventoryFeignClient);
     }
 
     @Test
-    @DisplayName("SalesService 실패 시에도 acknowledge 호출 (중복 처리 방지)")
-    void handlePaymentRefunded_WhenSalesServiceFails_ShouldStillAcknowledge() throws Exception {
+    @DisplayName("고객 요청 환불 이벤트 수신 시 재고를 복구한다")
+    void handlePaymentRefunded_WhenCustomerCancel_ShouldRestoreInventory() throws Exception {
+        // given
+        String orderId = "order-cancel";
+        Long salesId = 10L;
+        PaymentRefundedEvent event = createTestEvent(orderId, salesId, "고객 요청");
+        given(salesService.getSalesBySalesId(salesId)).willReturn(ResSalesGetByIdDTO.builder()
+                .sales(ResSalesGetByIdDTO.SalesDetail.builder()
+                        .salesId(salesId)
+                        .orderId(orderId)
+                        .status("COMPLETED")
+                        .items(List.of(ResSalesGetByIdDTO.SalesItemDetail.builder()
+                                .productId(1999L)
+                                .quantity(1)
+                                .build()))
+                        .build())
+                .build());
+        given(inventoryFeignClient.increaseInventory(any(InventoryChangeDTO.Request.class)))
+                .willReturn(InventoryChangeDTO.Response.builder().success(true).build());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+        }).when(acknowledgment).acknowledge();
+
+        // when
+        consumer.handlePaymentRefunded(event, acknowledgment);
+
+        // then
+        assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
+        verify(salesService).cancelSales(salesId, orderId, "고객 요청");
+        ArgumentCaptor<InventoryChangeDTO.Request> requestCaptor =
+                ArgumentCaptor.forClass(InventoryChangeDTO.Request.class);
+        verify(inventoryFeignClient).increaseInventory(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getItems()).hasSize(1);
+        assertThat(requestCaptor.getValue().getItems().get(0).getProductId()).isEqualTo(1999L);
+        assertThat(requestCaptor.getValue().getItems().get(0).getQuantity()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("고객 요청 환불이어도 주문이 완료 전이면 재고 복구를 스킵한다")
+    void handlePaymentRefunded_WhenSalesNotCompleted_ShouldSkipInventoryRestore() throws Exception {
+        // given
+        String orderId = "order-cancel-pending";
+        Long salesId = 11L;
+        PaymentRefundedEvent event = createTestEvent(orderId, salesId, "고객 요청");
+        given(salesService.getSalesBySalesId(salesId)).willReturn(ResSalesGetByIdDTO.builder()
+                .sales(ResSalesGetByIdDTO.SalesDetail.builder()
+                        .salesId(salesId)
+                        .orderId(orderId)
+                        .status("PENDING")
+                        .items(List.of(ResSalesGetByIdDTO.SalesItemDetail.builder()
+                                .productId(1999L)
+                                .quantity(1)
+                                .build()))
+                        .build())
+                .build());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+        }).when(acknowledgment).acknowledge();
+
+        // when
+        consumer.handlePaymentRefunded(event, acknowledgment);
+
+        // then
+        assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
+        verify(salesService).cancelSales(salesId, orderId, "고객 요청");
+        verifyNoInteractions(inventoryFeignClient);
+    }
+
+    @Test
+    @DisplayName("SalesService 실패 시 ack하지 않아 재처리 가능 상태로 둔다")
+    void handlePaymentRefunded_WhenSalesServiceFails_ShouldNotAcknowledge() throws Exception {
         // given
         String orderId = "order-456";
         Long salesId = 2L;
@@ -128,8 +212,8 @@ class PaymentRefundedEventConsumerTest {
         verify(slackAlertService, times(1))
                 .sendKafkaErrorAlert(eq("payment-refunded"), contains(orderId), any(Exception.class));
 
-        // acknowledge도 호출되어야 함
-        verify(acknowledgment, times(1)).acknowledge();
+        // 실패 시 ack하지 않아 offset commit을 막고 재처리 가능 상태로 둔다.
+        verify(acknowledgment, after(300).never()).acknowledge();
     }
 
     @Test
@@ -190,10 +274,15 @@ class PaymentRefundedEventConsumerTest {
     }
 
     private PaymentRefundedEvent createTestEvent(String orderId, Long salesId) {
+        return createTestEvent(orderId, salesId, null);
+    }
+
+    private PaymentRefundedEvent createTestEvent(String orderId, Long salesId, String reason) {
         return PaymentRefundedEvent.builder()
                 .eventId("event-" + System.currentTimeMillis())
                 .orderId(orderId)
                 .salesId(salesId)
+                .reason(reason)
                 .refundedAt(LocalDateTime.now())
                 .build();
     }

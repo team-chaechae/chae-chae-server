@@ -131,11 +131,6 @@ public class SalesServiceImpl implements SalesService {
             log.info("[주문 상태 변경 스킵 - 이미 취소됨] orderId: {}, salesId: {}", orderId, salesId);
             return;
         }
-        if (sales.isCompleted()) {
-            log.warn("[주문 상태 변경 스킵 - 이미 완료] orderId: {}, salesId: {}", orderId, salesId);
-            return;
-        }
-
         sales.cancel(reason);
         log.info("[주문 취소 완료] orderId: {}, salesId: {}, status: {}",
                 orderId, salesId, sales.getStatus());

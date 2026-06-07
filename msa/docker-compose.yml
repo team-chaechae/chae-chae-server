@@ -12,7 +12,7 @@ services:
     container_name: msa-mysql-user
     profiles: [infra]
     env_file:
-      - env.mysql.user
+      - .env.user.mysql
     ports:
       - "3307:3306"
     volumes:
@@ -25,7 +25,7 @@ services:
     container_name: msa-mysql-product
     profiles: [infra]
     env_file:
-      - env.mysql.product
+      - .env.product.mysql
     ports:
       - "3308:3306"
     volumes:
@@ -38,7 +38,7 @@ services:
     container_name: msa-mysql-inventory
     profiles: [infra]
     env_file:
-      - env.mysql.inventory
+      - .env.inventory.mysql
     ports:
       - "3309:3306"
     volumes:
@@ -51,7 +51,7 @@ services:
     container_name: msa-mysql-order
     profiles: [infra]
     env_file:
-      - env.mysql.order
+      - .env.order.mysql
     ports:
       - "3310:3306"
     volumes:
@@ -64,7 +64,7 @@ services:
     container_name: msa-mysql-chatbot
     profiles: [infra]
     env_file:
-      - env.mysql.chatbot
+      - .env.chatbot.mysql
     ports:
       - "3311:3306"
     volumes:

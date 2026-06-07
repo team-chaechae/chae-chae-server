@@ -43,7 +43,8 @@ public class PaymentCompletedEventConsumer {
                 } catch (Exception e) {
                     log.error("[재고 차감 처리 실패] orderId: {}, salesId: {}, 에러: {}",
                             orderId, salesId, e.getMessage());
-                    ack.acknowledge();  // 중복 처리 방지
+                    // ack하지 않아 offset commit을 막고, consumer 재시작/리밸런싱 시 재처리되도록 둔다.
+                    // 재고 차감은 orderId 기반 멱등성 키로 중복 처리를 방어한다.
                 }
             });
         } catch (RejectedExecutionException e) {

@@ -52,7 +52,8 @@ public class PaymentCompletedEventConsumer {
                             orderId, salesId, e.getMessage());
                     slackAlertService.sendKafkaErrorAlert(TOPIC,
                             "주문 상태 변경 실패 - orderId: " + orderId + ", salesId: " + salesId, e);
-                    ack.acknowledge();  // 중복 처리 방지
+                    // ack하지 않아 offset commit을 막고 재처리 가능 상태로 둔다.
+                    // 주문 상태 변경은 현재 상태 확인으로 중복 이벤트를 방어한다.
                 }
             });
         } catch (RejectedExecutionException e) {

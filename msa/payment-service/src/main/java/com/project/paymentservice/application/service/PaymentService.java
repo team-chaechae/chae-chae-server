@@ -11,6 +11,10 @@ public interface PaymentService {
 
     ResPaymentDTO processPayment(String orderId, Long salesId, Integer amount, List<PaymentCompletedInternalEvent.OrderItem> items);
 
+    ResPaymentDTO confirmTossPayment(String paymentKey, String orderId, Long salesId, Integer amount);
+
+    ResPaymentDTO cancelTossPayment(Long salesId, String cancelReason);
+
     ResPaymentDTO getPaymentBySalesId(Long salesId);
 
     void completePayment(Long salesId);

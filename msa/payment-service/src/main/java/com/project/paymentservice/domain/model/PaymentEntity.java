@@ -44,6 +44,15 @@ public class PaymentEntity {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    @Column(name = "toss_payment_key", unique = true, length = 200)
+    private String tossPaymentKey;
+
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PaymentHistoryEntity> histories = new ArrayList<>();
 
@@ -81,6 +90,17 @@ public class PaymentEntity {
     public void complete() {
         this.status = PaymentStatus.COMPLETED;
         addHistory(PaymentStatus.COMPLETED, "결제 완료");
+    }
+
+    public void completeWithToss(String tossPaymentKey, String paymentMethod, LocalDateTime approvedAt) {
+        this.tossPaymentKey = tossPaymentKey;
+        this.paymentMethod = paymentMethod;
+        this.approvedAt = approvedAt;
+        complete();
+    }
+
+    public void assignTossPaymentKey(String tossPaymentKey) {
+        this.tossPaymentKey = tossPaymentKey;
     }
 
     public void fail(String reason) {

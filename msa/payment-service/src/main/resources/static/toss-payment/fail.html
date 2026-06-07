@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>결제 실패</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1d2129;
+      background: #f6f7f9;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(520px, 100%);
+      background: #ffffff;
+      border: 1px solid #d8dde6;
+      border-radius: 8px;
+      padding: 28px;
+      box-shadow: 0 12px 30px rgba(29, 33, 41, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      line-height: 1.3;
+    }
+
+    p {
+      margin: 8px 0;
+      color: #5c6675;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    a {
+      color: #2164d7;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>결제 실패</h1>
+  <p id="code"></p>
+  <p id="message"></p>
+  <p><a href="/toss-payment/index.html">결제창으로 돌아가기</a></p>
+</main>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  document.querySelector("#code").textContent = `code: ${params.get("code") || "-"}`;
+  document.querySelector("#message").textContent = params.get("message") || "결제가 취소되었거나 실패했습니다.";
+</script>
+</body>
+</html>

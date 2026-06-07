@@ -91,8 +91,8 @@ class PaymentCompletedEventConsumerTest {
         assertThat(messageCaptor.getValue()).contains("salesId: 1");
         assertThat(exceptionCaptor.getValue().getMessage()).isEqualTo("DB 연결 실패");
 
-        // acknowledge도 호출되어야 함 (중복 처리 방지)
-        verify(acknowledgment, times(1)).acknowledge();
+        // 실패 시 ack하지 않아 offset commit을 막고 재처리 가능 상태로 둔다.
+        verify(acknowledgment, after(300).never()).acknowledge();
     }
 
     @Test

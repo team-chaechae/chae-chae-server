@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .pathMatchers("/api/users/auth/**").permitAll()
                         .pathMatchers("/api/users/signup").permitAll()
                         .pathMatchers("/api/users/customers/signup").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/payment/toss/confirm").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/payment/toss/config").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
@@ -52,6 +54,8 @@ public class SecurityConfig {
                         .pathMatchers("/api/inventory/**").hasAnyRole("EMPLOYEE", "ADMIN")
                         .pathMatchers("/api/products/**").hasAnyRole("EMPLOYEE", "ADMIN")
                         .pathMatchers("/api/orders/**").hasAnyRole("EMPLOYEE", "ADMIN")
+                        .pathMatchers("/api/payment/toss/cancel").hasAnyRole("EMPLOYEE", "ADMIN")
+                        .pathMatchers("/api/payment/sales/*/refund").hasAnyRole("EMPLOYEE", "ADMIN")
 
                         // CUSTOMER, EMPLOYEE, ADMIN 모두 접근 가능 (판매/주문, 챗봇, 고객정보)
                         .pathMatchers("/api/users/customers/me").hasAnyRole("CUSTOMER", "EMPLOYEE", "ADMIN")
