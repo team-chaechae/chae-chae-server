@@ -35,6 +35,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentCompletionRecorder paymentCompletionRecorder;
     private final PaymentCancellationRecorder paymentCancellationRecorder;
     private final OrderSalesClient orderSalesClient;
+    private final PaymentTossOperationService paymentTossOperationService;
 
     @Override
     @Transactional
@@ -80,25 +81,39 @@ public class PaymentServiceImpl implements PaymentService {
         OrderSalesResponse.SalesDetail sales = orderSalesClient.getSales(salesId);
         validateSalesForTossConfirm(orderId, salesId, amount, sales);
         List<PaymentCompletedInternalEvent.OrderItem> items = toPaymentCompletedItems(sales.items());
+        String operationId = buildConfirmIdempotencyKey(salesId);
+        paymentTossOperationService.beginConfirm(operationId, orderId, salesId, amount, paymentKey);
 
         try {
             TossPaymentConfirmResponse response = tossPaymentClient.confirmPayment(
                     paymentKey,
                     orderId,
                     amount,
-                    buildConfirmIdempotencyKey(salesId)
+                    operationId
             );
             validateTossConfirmResponse(paymentKey, orderId, amount, response);
-
-            return paymentCompletionRecorder.recordTossPaymentCompleted(
-                    orderId,
-                    salesId,
-                    amount,
-                    response.paymentKey(),
+            paymentTossOperationService.markConfirmTossSucceeded(
+                    operationId,
                     response.method(),
-                    toLocalDateTime(response.approvedAt()),
-                    items
+                    toLocalDateTime(response.approvedAt())
             );
+
+            try {
+                ResPaymentDTO result = paymentCompletionRecorder.recordTossPaymentCompleted(
+                        orderId,
+                        salesId,
+                        amount,
+                        response.paymentKey(),
+                        response.method(),
+                        toLocalDateTime(response.approvedAt()),
+                        items
+                );
+                paymentTossOperationService.markLocalRecorded(operationId);
+                return result;
+            } catch (RuntimeException e) {
+                paymentTossOperationService.markLocalRecordFailed(operationId, e);
+                throw e;
+            }
         } catch (TossPaymentException e) {
             paymentCompletionRecorder.recordTossPaymentFailed(
                     orderId,
@@ -107,6 +122,7 @@ public class PaymentServiceImpl implements PaymentService {
                     paymentKey,
                     e.getMessage()
             );
+            paymentTossOperationService.markFailed(operationId, e);
             log.warn("[Payment] 토스페이먼츠 결제 승인 실패 - orderId: {}, salesId: {}, code: {}, statusCode: {}",
                     orderId, salesId, e.getCode(), e.getStatusCode());
             throw e;
@@ -129,16 +145,33 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BadRequestException("토스페이먼츠 결제 키가 없는 결제는 토스 취소를 요청할 수 없습니다.");
         }
 
+        String operationId = buildCancelIdempotencyKey(salesId);
+        paymentTossOperationService.beginCancel(
+                operationId,
+                payment.getOrderId(),
+                salesId,
+                payment.getTossPaymentKey(),
+                cancelReason
+        );
         try {
             TossPaymentCancelResponse response = tossPaymentClient.cancelPayment(
                     payment.getTossPaymentKey(),
                     cancelReason,
-                    buildCancelIdempotencyKey(salesId)
+                    operationId
             );
             validateTossCancelResponse(payment, response);
+            paymentTossOperationService.markCancelTossSucceeded(operationId);
 
-            return paymentCancellationRecorder.recordTossPaymentCanceled(salesId, cancelReason);
+            try {
+                ResPaymentDTO result = paymentCancellationRecorder.recordTossPaymentCanceled(salesId, cancelReason);
+                paymentTossOperationService.markLocalRecorded(operationId);
+                return result;
+            } catch (RuntimeException e) {
+                paymentTossOperationService.markLocalRecordFailed(operationId, e);
+                throw e;
+            }
         } catch (TossPaymentException e) {
+            paymentTossOperationService.markFailed(operationId, e);
             log.warn("[Payment] 토스페이먼츠 결제 취소 실패 - orderId: {}, salesId: {}, code: {}, statusCode: {}",
                     payment.getOrderId(), salesId, e.getCode(), e.getStatusCode());
             throw new BadRequestException(e.getMessage());
@@ -193,15 +226,31 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         if (StringUtils.hasText(payment.getTossPaymentKey())) {
+            String operationId = buildCancelIdempotencyKey(salesId);
+            paymentTossOperationService.beginCancel(
+                    operationId,
+                    payment.getOrderId(),
+                    salesId,
+                    payment.getTossPaymentKey(),
+                    reason
+            );
             try {
                 TossPaymentCancelResponse response = tossPaymentClient.cancelPayment(
                         payment.getTossPaymentKey(),
                         reason,
-                        buildCancelIdempotencyKey(salesId)
+                        operationId
                 );
                 validateTossCancelResponse(payment, response);
-                paymentCancellationRecorder.recordTossPaymentCanceled(salesId, reason);
+                paymentTossOperationService.markCancelTossSucceeded(operationId);
+                try {
+                    paymentCancellationRecorder.recordTossPaymentCanceled(salesId, reason);
+                    paymentTossOperationService.markLocalRecorded(operationId);
+                } catch (RuntimeException e) {
+                    paymentTossOperationService.markLocalRecordFailed(operationId, e);
+                    throw e;
+                }
             } catch (TossPaymentException e) {
+                paymentTossOperationService.markFailed(operationId, e);
                 log.warn("[Payment] 토스페이먼츠 환불 취소 실패 - orderId: {}, salesId: {}, code: {}, statusCode: {}",
                         payment.getOrderId(), salesId, e.getCode(), e.getStatusCode());
                 throw new BadRequestException(e.getMessage());

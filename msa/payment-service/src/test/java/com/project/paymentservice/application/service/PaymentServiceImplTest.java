@@ -55,6 +55,9 @@ class PaymentServiceImplTest {
     @Mock
     private OrderSalesClient orderSalesClient;
 
+    @Mock
+    private PaymentTossOperationService paymentTossOperationService;
+
     @InjectMocks
     private PaymentServiceImpl paymentService;
 
@@ -248,6 +251,58 @@ class PaymentServiceImplTest {
     }
 
     @Test
+    @DisplayName("토스 승인 성공 후 로컬 완료 기록 실패 시 복구 대상 operation으로 남긴다")
+    void confirmTossPayment_WhenLocalRecordFailsAfterTossSuccess_MarksOperationForRecovery() {
+        // given
+        String paymentKey = "tgen_20260519123456AbCdE";
+        TossPaymentConfirmResponse tossResponse = new TossPaymentConfirmResponse(
+                paymentKey,
+                orderId,
+                "DONE",
+                amount,
+                "카드",
+                OffsetDateTime.now()
+        );
+
+        given(paymentRepository.findBySalesId(salesId)).willReturn(Optional.empty());
+        given(orderSalesClient.getSales(salesId)).willReturn(testSalesDetail());
+        given(tossPaymentClient.confirmPayment(paymentKey, orderId, amount, "payment-confirm-" + salesId))
+                .willReturn(tossResponse);
+        given(paymentCompletionRecorder.recordTossPaymentCompleted(
+                eq(orderId),
+                eq(salesId),
+                eq(amount),
+                eq(paymentKey),
+                eq("카드"),
+                any(LocalDateTime.class),
+                anyList()
+        )).willThrow(new RuntimeException("DB 장애"));
+
+        // when & then
+        assertThatThrownBy(() -> paymentService.confirmTossPayment(paymentKey, orderId, salesId, amount))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("DB 장애");
+
+        verify(paymentTossOperationService).beginConfirm(
+                "payment-confirm-" + salesId,
+                orderId,
+                salesId,
+                amount,
+                paymentKey
+        );
+        verify(paymentTossOperationService).markConfirmTossSucceeded(
+                eq("payment-confirm-" + salesId),
+                eq("카드"),
+                any(LocalDateTime.class)
+        );
+        verify(paymentTossOperationService).markLocalRecordFailed(
+                eq("payment-confirm-" + salesId),
+                any(RuntimeException.class)
+        );
+        verify(paymentTossOperationService, never()).markLocalRecorded("payment-confirm-" + salesId);
+    }
+
+    @Test
     @DisplayName("토스페이먼츠 결제 취소 성공 시 취소 API 호출 후 환불 상태를 기록한다")
     void cancelTossPayment_Success() {
         // given
@@ -291,6 +346,57 @@ class PaymentServiceImplTest {
         assertThat(result.getPayment().getStatus()).isEqualTo(PaymentStatus.REFUNDED.name());
         verify(tossPaymentClient).cancelPayment(paymentKey, reason, "payment-cancel-" + salesId);
         verify(paymentCancellationRecorder).recordTossPaymentCanceled(salesId, reason);
+    }
+
+    @Test
+    @DisplayName("토스 취소 성공 후 로컬 환불 기록 실패 시 복구 대상 operation으로 남긴다")
+    void cancelTossPayment_WhenLocalRecordFailsAfterTossSuccess_MarksOperationForRecovery() {
+        // given
+        String paymentKey = "tgen_20260519123456AbCdE";
+        String reason = "고객 요청";
+        PaymentEntity payment = PaymentEntity.create(orderId, salesId, amount);
+        payment.process();
+        payment.completeWithToss(paymentKey, "카드", LocalDateTime.now());
+
+        given(paymentRepository.findBySalesId(salesId)).willReturn(Optional.of(payment));
+        given(tossPaymentClient.cancelPayment(paymentKey, reason, "payment-cancel-" + salesId))
+                .willReturn(new TossPaymentCancelResponse(
+                        paymentKey,
+                        orderId,
+                        "CANCELED",
+                        amount,
+                        "카드",
+                        OffsetDateTime.now(),
+                        List.of(new TossPaymentCancelResponse.CancelDetail(
+                                amount,
+                                reason,
+                                0,
+                                OffsetDateTime.now(),
+                                "cancel_tx_key",
+                                "DONE"
+                        ))
+                ));
+        given(paymentCancellationRecorder.recordTossPaymentCanceled(salesId, reason))
+                .willThrow(new RuntimeException("DB 장애"));
+
+        // when & then
+        assertThatThrownBy(() -> paymentService.cancelTossPayment(salesId, reason))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("DB 장애");
+
+        verify(paymentTossOperationService).beginCancel(
+                "payment-cancel-" + salesId,
+                orderId,
+                salesId,
+                paymentKey,
+                reason
+        );
+        verify(paymentTossOperationService).markCancelTossSucceeded("payment-cancel-" + salesId);
+        verify(paymentTossOperationService).markLocalRecordFailed(
+                eq("payment-cancel-" + salesId),
+                any(RuntimeException.class)
+        );
+        verify(paymentTossOperationService, never()).markLocalRecorded("payment-cancel-" + salesId);
     }
 
     @Test
