@@ -110,6 +110,31 @@ class PaymentRefundedEventConsumerTest {
     }
 
     @Test
+    @DisplayName("오케스트레이션 보상 환불 이벤트는 중복 보상을 막기 위해 스킵하고 ack한다")
+    void handlePaymentRefunded_WhenOrchestrationCompensation_ShouldSkipAndAcknowledge() throws Exception {
+        // given
+        String orderId = "order-orchestration";
+        Long salesId = 77L;
+        PaymentRefundedEvent event = createTestEvent(orderId, salesId, "주문 완료 실패: DB 장애");
+
+        CountDownLatch latch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+        }).when(acknowledgment).acknowledge();
+
+        // when
+        consumer.handlePaymentRefunded(event, acknowledgment);
+
+        // then
+        assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
+        verify(acknowledgment).acknowledge();
+        verifyNoInteractions(inventoryFeignClient);
+        verify(salesService, never()).cancelSales(anyLong(), anyString(), anyString());
+        verify(sseEmitterRegistry, never()).sendEvent(anyString(), any(NotificationEvent.class));
+    }
+
+    @Test
     @DisplayName("고객 요청 환불 이벤트 수신 시 재고를 복구한다")
     void handlePaymentRefunded_WhenCustomerCancel_ShouldRestoreInventory() throws Exception {
         // given
@@ -145,6 +170,7 @@ class PaymentRefundedEventConsumerTest {
         ArgumentCaptor<InventoryChangeDTO.Request> requestCaptor =
                 ArgumentCaptor.forClass(InventoryChangeDTO.Request.class);
         verify(inventoryFeignClient).increaseInventory(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getOperationId()).isEqualTo("payment-refund:10:inventory-restore");
         assertThat(requestCaptor.getValue().getItems()).hasSize(1);
         assertThat(requestCaptor.getValue().getItems().get(0).getProductId()).isEqualTo(1999L);
         assertThat(requestCaptor.getValue().getItems().get(0).getQuantity()).isEqualTo(1);

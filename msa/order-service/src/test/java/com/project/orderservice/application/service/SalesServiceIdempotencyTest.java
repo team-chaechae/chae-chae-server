@@ -202,8 +202,8 @@ class SalesServiceIdempotencyTest {
         }
 
         @Test
-        @DisplayName("현 결제 후 재고 차감 플로우에서는 주문이 완료됐다가 재고 실패 환불로 취소될 수 있다")
-        void paymentCompletedThenInventoryFailed_TransitionsCompletedThenCancelled() {
+        @DisplayName("결제 완료 후 환불 이벤트가 도착하면 주문이 취소될 수 있다")
+        void paymentCompletedThenRefunded_TransitionsCompletedThenCancelled() {
             // given
             SalesEntity pendingSales = createSalesEntity(SalesStatus.PENDING);
             given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(pendingSales);
@@ -214,7 +214,7 @@ class SalesServiceIdempotencyTest {
             salesService.completeSales(salesId, orderId);
             SalesStatus statusAfterPaymentCompleted = pendingSales.getStatus();
 
-            // when - 이후 inventory-failed -> payment-refunded 이벤트가 도착해 주문을 취소한다.
+            // when - 이후 payment-refunded 이벤트가 도착해 주문을 취소한다.
             salesService.cancelSales(salesId, orderId, "재고 차감 실패로 인한 환불");
             SalesStatus statusAfterInventoryFailure = pendingSales.getStatus();
 

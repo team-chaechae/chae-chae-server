@@ -23,9 +23,14 @@ public class SalesInventoryServiceImpl implements SalesInventoryService {
 
     private final StockCacheService stockCacheService;
     private final InventoryEventProducer eventProducer;
+    private final SalesInventoryIdempotencyService idempotencyService;
 
     @Override
     public ResSalesInventoryDTO increaseInventory(ReqSalesInventoryDTO dto) {
+        return idempotencyService.execute(dto.getOperationId(), () -> doIncreaseInventory(dto));
+    }
+
+    private ResSalesInventoryDTO doIncreaseInventory(ReqSalesInventoryDTO dto) {
         List<InventoryChangeResult> results = new ArrayList<>();
 
         try {
@@ -64,6 +69,10 @@ public class SalesInventoryServiceImpl implements SalesInventoryService {
 
     @Override
     public ResSalesInventoryDTO decreaseInventory(ReqSalesInventoryDTO dto) {
+        return idempotencyService.execute(dto.getOperationId(), () -> doDecreaseInventory(dto));
+    }
+
+    private ResSalesInventoryDTO doDecreaseInventory(ReqSalesInventoryDTO dto) {
         log.debug("[Sales] 재고 차감 요청: {} 건", dto.getItems().size());
 
         List<InventoryChangeResult> results = new ArrayList<>();

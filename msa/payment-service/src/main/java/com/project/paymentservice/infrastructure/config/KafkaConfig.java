@@ -1,7 +1,6 @@
 package com.project.paymentservice.infrastructure.config;
 
 import com.project.paymentservice.infrastructure.config.kafka.KafkaConsumerHelper;
-import com.project.paymentservice.infrastructure.kafka.dto.InventoryFailedEvent;
 import com.project.paymentservice.infrastructure.kafka.dto.OrderCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -87,21 +86,4 @@ public class KafkaConfig {
         );
     }
 
-    @Bean
-    public ConsumerFactory<String, InventoryFailedEvent> inventoryFailedConsumerFactory() {
-        return KafkaConsumerHelper.createConsumerFactory(
-                bootstrapServers,
-                "payment-inventory-failed-group",
-                InventoryFailedEvent.class
-        );
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryFailedEvent> inventoryFailedListenerFactory() {
-        return KafkaConsumerHelper.createListenerFactory(
-                inventoryFailedConsumerFactory(),
-                kafkaErrorHandler,
-                3
-        );
-    }
 }

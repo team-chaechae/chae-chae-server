@@ -45,7 +45,7 @@ public class PaymentCompletedInternalEvent {
     }
 
     public String getMessageKey() {
-        return orderId;
+        return String.valueOf(salesId);
     }
 
     public String getAggregateId() {

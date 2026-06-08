@@ -54,6 +54,13 @@ public class PaymentRefundedEventConsumer {
                 try {
                     log.info("[결제 환불 이벤트 수신] orderId: {}, salesId: {}", orderId, salesId);
 
+                    if (isOrchestrationCompensation(event)) {
+                        log.info("[오케스트레이션 환불 이벤트 스킵] orderId: {}, salesId: {}, reason: {}",
+                                orderId, salesId, reason);
+                        ack.acknowledge();
+                        return;
+                    }
+
                     ResSalesGetByIdDTO.SalesDetail salesBeforeCancel = null;
                     if (shouldRestoreInventory(event)) {
                         salesBeforeCancel = getSalesBeforeCancel(salesId, orderId);
@@ -80,6 +87,14 @@ public class PaymentRefundedEventConsumer {
             log.warn("[백프레셔] 작업 거부 - orderId: {}, error: {}", orderId, e.getMessage());
             // ack 안함 → 재처리
         }
+    }
+
+    private boolean isOrchestrationCompensation(PaymentRefundedEvent event) {
+        String reason = event.getReason();
+        return reason != null
+                && (reason.contains("재고 차감 실패")
+                || reason.contains("주문 완료 실패")
+                || reason.contains("결제 완료 오케스트레이션 보상"));
     }
 
     private boolean shouldRestoreInventory(PaymentRefundedEvent event) {
@@ -115,6 +130,7 @@ public class PaymentRefundedEventConsumer {
 
         InventoryChangeDTO.Response response = inventoryFeignClient.increaseInventory(
                 InventoryChangeDTO.Request.builder()
+                        .operationId("payment-refund:" + salesId + ":inventory-restore")
                         .items(items)
                         .build()
         );

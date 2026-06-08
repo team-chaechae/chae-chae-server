@@ -35,7 +35,7 @@ public class PaymentRefundedInternalEvent {
     }
 
     public String getMessageKey() {
-        return orderId;  // orderId로 통일 → 같은 파티션 보장
+        return String.valueOf(salesId);
     }
 
     public String getAggregateId() {
