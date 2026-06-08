@@ -3,6 +3,7 @@ package com.project.paymentservice.infrastructure.outbox;
 import com.project.paymentservice.domain.model.OutboxEntity;
 import com.project.paymentservice.domain.model.OutboxEntity.OutboxStatus;
 import com.project.paymentservice.domain.repository.OutboxRepository;
+import java.util.Arrays;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,12 @@ public class OutboxMessageRelay {
     @Value("${outbox.relay.max-retries:3}")
     private int maxRetries;
 
+    @Value("${outbox.relay.send-timeout-seconds:5}")
+    private long sendTimeoutSeconds;
+
+    @Value("${dlq.topic-suffix:.dlq}")
+    private String dlqTopicSuffix;
+
     @Value("${outbox.relay.cleanup-days:7}")
     private int cleanupDays;
 
@@ -41,6 +48,7 @@ public class OutboxMessageRelay {
 
         List<OutboxEntity> messages = outboxRepository.findMessagesForRetry(
             OutboxStatus.SEND_SUCCESS,
+            Arrays.asList(OutboxStatus.INIT, OutboxStatus.SEND_FAIL),
             threshold,
             maxRetries,
             batchSize
@@ -71,16 +79,60 @@ public class OutboxMessageRelay {
     private void retryPublish(OutboxEntity outbox) {
         try {
             kafkaTemplate.send(outbox.getTopic(), outbox.getMessageKey(), outbox.getPayload())
-                .get(5, TimeUnit.SECONDS);
+                .get(sendTimeoutSeconds, TimeUnit.SECONDS);
 
             outbox.markAsSendSuccess();
             log.info("[Outbox Relay] 재발행 성공 - topic: {}, key: {}, outboxId: {}, retryCount: {}",
                 outbox.getTopic(), outbox.getMessageKey(), outbox.getId(), outbox.getRetryCount());
 
         } catch (Exception e) {
-            outbox.markAsSendFail(e.getMessage());
+            handlePublishFailure(outbox, resolveErrorMessage(e));
             log.error("[Outbox Relay] 재발행 실패 - outboxId: {}, retryCount: {}, error: {}",
-                outbox.getId(), outbox.getRetryCount(), e.getMessage());
+                outbox.getId(), outbox.getRetryCount(), resolveErrorMessage(e));
         }
+    }
+
+    private void handlePublishFailure(OutboxEntity outbox, String errorMessage) {
+        int nextRetryCount = outbox.getRetryCount() + 1;
+        if (nextRetryCount >= maxRetries) {
+            if (publishToDlq(outbox, errorMessage)) {
+                outbox.markAsDlqSent(errorMessage);
+                return;
+            }
+            outbox.markAsDlqFail("DLQ publish failed: " + errorMessage, Math.max(0, maxRetries - 1));
+            return;
+        }
+
+        outbox.markAsSendFail(errorMessage);
+    }
+
+    private boolean publishToDlq(OutboxEntity outbox, String errorMessage) {
+        String dlqTopic = outbox.getTopic() + dlqTopicSuffix;
+        try {
+            kafkaTemplate.send(dlqTopic, outbox.getMessageKey(), outbox.getPayload())
+                    .get(sendTimeoutSeconds, TimeUnit.SECONDS);
+            log.error("[Outbox Relay] DLQ 전송 - topic: {}, outboxId: {}, error: {}",
+                    dlqTopic, outbox.getId(), errorMessage);
+            return true;
+        } catch (Exception e) {
+            log.error("[Outbox Relay] DLQ 전송 실패 - topic: {}, outboxId: {}, error: {}",
+                    dlqTopic, outbox.getId(), resolveErrorMessage(e));
+            return false;
+        }
+    }
+
+    private String resolveErrorMessage(Exception exception) {
+        Throwable cause = exception;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        if (message == null || message.isBlank()) {
+            message = exception.getMessage();
+        }
+        if (message == null || message.isBlank()) {
+            return cause.getClass().getSimpleName();
+        }
+        return message;
     }
 }

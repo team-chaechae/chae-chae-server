@@ -16,11 +16,13 @@ public interface OutboxRepository extends JpaRepository<OutboxEntity, Long> {
         String aggregateId, String eventType, OutboxStatus status);
 
     @Query("SELECT o FROM OutboxEntity o WHERE o.status != :successStatus " +
+           "AND o.status IN :retryStatuses " +
            "AND o.createdAt < :threshold " +
            "AND o.retryCount < :maxRetries " +
            "ORDER BY o.createdAt ASC LIMIT :limit")
     List<OutboxEntity> findMessagesForRetry(
         @Param("successStatus") OutboxStatus successStatus,
+        @Param("retryStatuses") List<OutboxStatus> retryStatuses,
         @Param("threshold") LocalDateTime threshold,
         @Param("maxRetries") int maxRetries,
         @Param("limit") int limit
