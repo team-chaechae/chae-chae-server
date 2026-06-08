@@ -41,7 +41,8 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
   instance:
-    prefer-ip-address: true
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    prefer-ip-address: false
 
 management:
   endpoints:
@@ -73,3 +74,15 @@ kafka:
     core-pool-size: 5
     max-pool-size: 20
     acquire-timeout-ms: 30000
+
+toss:
+  payments:
+    base-url: ${TOSS_PAYMENTS_BASE_URL:https://api.tosspayments.com}
+    client-key: ${TOSS_PAYMENTS_CLIENT_KEY:}
+    secret-key: ${TOSS_PAYMENTS_SECRET_KEY}
+    connect-timeout: ${TOSS_PAYMENTS_CONNECT_TIMEOUT:3s}
+    read-timeout: ${TOSS_PAYMENTS_READ_TIMEOUT:10s}
+
+order:
+  service:
+    base-url: ${ORDER_SERVICE_BASE_URL:http://localhost:8084}

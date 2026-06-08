@@ -187,8 +187,8 @@ class SalesServiceIdempotencyTest {
         }
 
         @Test
-        @DisplayName("이미 완료된 주문은 취소 처리하지 않는다")
-        void cancelSales_CompletedOrder_NoChange() {
+        @DisplayName("이미 완료된 주문도 환불 이벤트가 오면 취소 처리한다")
+        void cancelSales_CompletedOrder_Cancelled() {
             // given
             SalesEntity completedSales = createSalesEntity(SalesStatus.COMPLETED);
             given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(completedSales);
@@ -197,8 +197,31 @@ class SalesServiceIdempotencyTest {
             salesService.cancelSales(salesId, orderId, "늦게 도착한 취소 이벤트");
 
             // then
-            assertThat(completedSales.getStatus()).isEqualTo(SalesStatus.COMPLETED);
-            assertThat(completedSales.getFailureReason()).isNull();
+            assertThat(completedSales.getStatus()).isEqualTo(SalesStatus.CANCELLED);
+            assertThat(completedSales.getFailureReason()).isEqualTo("늦게 도착한 취소 이벤트");
+        }
+
+        @Test
+        @DisplayName("결제 완료 후 환불 이벤트가 도착하면 주문이 취소될 수 있다")
+        void paymentCompletedThenRefunded_TransitionsCompletedThenCancelled() {
+            // given
+            SalesEntity pendingSales = createSalesEntity(SalesStatus.PENDING);
+            given(salesRepository.findSalesBySalesIdSimple(salesId)).willReturn(pendingSales);
+
+            SalesStatus initialStatus = pendingSales.getStatus();
+
+            // when - payment-completed 이벤트가 먼저 도착해 주문을 완료 처리한다.
+            salesService.completeSales(salesId, orderId);
+            SalesStatus statusAfterPaymentCompleted = pendingSales.getStatus();
+
+            // when - 이후 payment-refunded 이벤트가 도착해 주문을 취소한다.
+            salesService.cancelSales(salesId, orderId, "재고 차감 실패로 인한 환불");
+            SalesStatus statusAfterInventoryFailure = pendingSales.getStatus();
+
+            // then
+            assertThat(List.of(initialStatus, statusAfterPaymentCompleted, statusAfterInventoryFailure))
+                    .containsExactly(SalesStatus.PENDING, SalesStatus.COMPLETED, SalesStatus.CANCELLED);
+            assertThat(pendingSales.getFailureReason()).isEqualTo("재고 차감 실패로 인한 환불");
         }
 
         @Test

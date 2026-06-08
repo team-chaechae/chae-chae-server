@@ -45,6 +45,12 @@ public class ResPaymentDTO {
 
         private String failureReason;
 
+        private String tossPaymentKey;
+
+        private String paymentMethod;
+
+        private LocalDateTime approvedAt;
+
         private List<HistoryDetail> histories;
 
         private LocalDateTime createdAt;
@@ -62,6 +68,9 @@ public class ResPaymentDTO {
                     .amount(payment.getAmount())
                     .status(payment.getStatus().name())
                     .failureReason(payment.getFailureReason())
+                    .tossPaymentKey(payment.getTossPaymentKey())
+                    .paymentMethod(payment.getPaymentMethod())
+                    .approvedAt(payment.getApprovedAt())
                     .histories(historyDetails)
                     .createdAt(payment.getCreatedAt())
                     .updatedAt(payment.getUpdatedAt())

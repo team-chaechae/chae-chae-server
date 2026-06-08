@@ -156,7 +156,8 @@ class PaymentIntegrationTest {
 
         // then
         assertThat(result.getPayment().getHistories()).isNotEmpty();
-        // PENDING → PROCESSING → COMPLETED 3개의 히스토리
-        assertThat(result.getPayment().getHistories()).hasSizeGreaterThanOrEqualTo(2);
+        // 현재 결제 히스토리는 최종 상태만 기록한다.
+        assertThat(result.getPayment().getHistories()).hasSize(1);
+        assertThat(result.getPayment().getHistories().get(0).getStatus()).isEqualTo("COMPLETED");
     }
 }

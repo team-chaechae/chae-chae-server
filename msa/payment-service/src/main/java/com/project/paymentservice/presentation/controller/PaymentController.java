@@ -2,8 +2,11 @@ package com.project.paymentservice.presentation.controller;
 
 import com.project.paymentservice.application.response.ResPaymentDTO;
 import com.project.paymentservice.application.service.PaymentService;
+import com.project.paymentservice.infrastructure.tosspayments.TossPaymentProperties;
 import com.project.paymentservice.presentation.controller.docs.PaymentControllerSwagger;
 import com.project.paymentservice.presentation.request.ReqPaymentDTO;
+import com.project.paymentservice.presentation.request.ReqTossPaymentCancelDTO;
+import com.project.paymentservice.presentation.request.ReqTossPaymentConfirmDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentController implements PaymentControllerSwagger {
 
     private final PaymentService paymentService;
+    private final TossPaymentProperties tossPaymentProperties;
 
     @PostMapping
     public ResponseEntity<ResPaymentDTO> processPayment(@Valid @RequestBody ReqPaymentDTO request) {
@@ -24,6 +28,31 @@ public class PaymentController implements PaymentControllerSwagger {
                 request.getAmount()
         );
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/toss/confirm")
+    public ResponseEntity<ResPaymentDTO> confirmTossPayment(@Valid @RequestBody ReqTossPaymentConfirmDTO request) {
+        ResPaymentDTO response = paymentService.confirmTossPayment(
+                request.getPaymentKey(),
+                request.getOrderId(),
+                request.getSalesId(),
+                request.getAmount()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/toss/cancel")
+    public ResponseEntity<ResPaymentDTO> cancelTossPayment(@Valid @RequestBody ReqTossPaymentCancelDTO request) {
+        ResPaymentDTO response = paymentService.cancelTossPayment(
+                request.getSalesId(),
+                request.getCancelReason()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/toss/config")
+    public ResponseEntity<TossPaymentConfigResponse> getTossPaymentConfig() {
+        return ResponseEntity.ok(new TossPaymentConfigResponse(tossPaymentProperties.getClientKey()));
     }
 
     @GetMapping("/sales/{salesId}")
@@ -52,5 +81,8 @@ public class PaymentController implements PaymentControllerSwagger {
     public static class PaymentStatusResponse {
         private Long salesId;
         private String status;
+    }
+
+    public record TossPaymentConfigResponse(String clientKey) {
     }
 }

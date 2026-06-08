@@ -2,7 +2,6 @@ package com.project.inventoryservice.infrastructure.config;
 
 import com.project.inventoryservice.infrastructure.config.kafka.KafkaConsumerHelper;
 import com.project.inventoryservice.infrastructure.kafka.InventoryEvent;
-import com.project.inventoryservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import com.project.inventoryservice.infrastructure.kafka.dto.ProductCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +16,6 @@ import org.springframework.kafka.listener.CommonErrorHandler;
  * Kafka Consumer 설정
  * - inventory-events: 재고 변경 이벤트 (DB 동기화용)
  * - product-created: 상품 생성 이벤트
- * - payment-completed: 결제 완료 이벤트 (재고 차감)
  */
 @EnableKafka
 @Configuration
@@ -78,23 +76,4 @@ public class KafkaConsumerConfig {
         );
     }
 
-    // ==================== Payment Completed Consumer ====================
-
-    @Bean
-    public ConsumerFactory<String, PaymentCompletedEvent> paymentCompletedConsumerFactory() {
-        return KafkaConsumerHelper.createConsumerFactory(
-                bootstrapServers,
-                "inventory-payment-group",
-                PaymentCompletedEvent.class
-        );
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, PaymentCompletedEvent> paymentCompletedListenerFactory() {
-        return KafkaConsumerHelper.createListenerFactory(
-                paymentCompletedConsumerFactory(),
-                kafkaErrorHandler,
-                3
-        );
-    }
 }

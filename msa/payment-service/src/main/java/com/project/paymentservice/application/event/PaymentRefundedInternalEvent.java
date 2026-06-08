@@ -17,19 +17,25 @@ public class PaymentRefundedInternalEvent {
     private String eventId;
     private String orderId;
     private Long salesId;
+    private String reason;
     private LocalDateTime refundedAt;
 
     public static PaymentRefundedInternalEvent of(String orderId, Long salesId) {
+        return of(orderId, salesId, null);
+    }
+
+    public static PaymentRefundedInternalEvent of(String orderId, Long salesId, String reason) {
         return PaymentRefundedInternalEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .orderId(orderId)
                 .salesId(salesId)
+                .reason(reason)
                 .refundedAt(LocalDateTime.now())
                 .build();
     }
 
     public String getMessageKey() {
-        return orderId;  // orderId로 통일 → 같은 파티션 보장
+        return String.valueOf(salesId);
     }
 
     public String getAggregateId() {

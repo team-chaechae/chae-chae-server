@@ -17,6 +17,7 @@ import java.util.List;
 public class ResSalesInventoryDTO {
 
     private boolean success;
+    private boolean duplicate;
     private int processedCount;
     private List<InventoryChangeResult> results;
 
@@ -33,8 +34,18 @@ public class ResSalesInventoryDTO {
     public static ResSalesInventoryDTO success(List<InventoryChangeResult> results) {
         return ResSalesInventoryDTO.builder()
                 .success(true)
+                .duplicate(false)
                 .processedCount(results.size())
                 .results(results)
+                .build();
+    }
+
+    public static ResSalesInventoryDTO duplicate() {
+        return ResSalesInventoryDTO.builder()
+                .success(true)
+                .duplicate(true)
+                .processedCount(0)
+                .results(List.of())
                 .build();
     }
 }

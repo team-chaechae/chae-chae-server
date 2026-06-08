@@ -34,6 +34,9 @@ public class ResSalesGetByIdDTO {
         @Schema(example = "101")
         private Long salesId;
 
+        @Schema(example = "c9f0b1ea-ef4a-4af8-aacf-54a1d7c3e16e")
+        private String orderId;
+
         @Schema(example = "COMPLETED")
         private String status;
 
@@ -54,6 +57,7 @@ public class ResSalesGetByIdDTO {
 
             return SalesDetail.builder()
                     .salesId(sales.getId())
+                    .orderId(sales.getOrderId())
                     .status(sales.getStatus().name())
                     .items(itemDetails)
                     .totalQuantity(sales.getTotalQuantity())

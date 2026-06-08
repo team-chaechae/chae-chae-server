@@ -1,6 +1,6 @@
 package com.project.orderservice.infrastructure.kafka;
 
-import com.project.orderservice.application.service.SalesService;
+import com.project.orderservice.application.service.PaymentOrchestrationService;
 import com.project.orderservice.infrastructure.alert.SlackAlertService;
 import com.project.orderservice.infrastructure.kafka.backpressure.BlockingThreadPoolExecutor;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentCompletedEvent;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 class PaymentCompletedEventConsumerTest {
 
     @Mock
-    private SalesService salesService;
+    private PaymentOrchestrationService paymentOrchestrationService;
 
     @Mock
     private SlackAlertService slackAlertService;
@@ -53,17 +53,17 @@ class PaymentCompletedEventConsumerTest {
                 new java.util.concurrent.LinkedBlockingQueue<>(100),
                 java.util.concurrent.Executors.defaultThreadFactory()
         );
-        consumer = new PaymentCompletedEventConsumer(salesService, executor, slackAlertService);
+        consumer = new PaymentCompletedEventConsumer(paymentOrchestrationService, executor, slackAlertService);
     }
 
     @Test
-    @DisplayName("SalesService 예외 발생 시 SlackAlertService.sendKafkaErrorAlert() 호출됨")
-    void handlePaymentCompleted_WhenSalesServiceThrows_ShouldSendSlackAlert() throws Exception {
+    @DisplayName("오케스트레이션 예외 발생 시 SlackAlertService.sendKafkaErrorAlert() 호출됨")
+    void handlePaymentCompleted_WhenOrchestrationFails_ShouldSendSlackAlert() throws Exception {
         // given
         PaymentCompletedEvent event = createTestEvent("order-123", 1L, 10000);
         RuntimeException testException = new RuntimeException("DB 연결 실패");
 
-        doThrow(testException).when(salesService).completeSales(anyLong(), anyString());
+        doThrow(testException).when(paymentOrchestrationService).handlePaymentCompleted(any(PaymentCompletedEvent.class));
 
         CountDownLatch latch = new CountDownLatch(1);
         doAnswer(invocation -> {
@@ -91,8 +91,8 @@ class PaymentCompletedEventConsumerTest {
         assertThat(messageCaptor.getValue()).contains("salesId: 1");
         assertThat(exceptionCaptor.getValue().getMessage()).isEqualTo("DB 연결 실패");
 
-        // acknowledge도 호출되어야 함 (중복 처리 방지)
-        verify(acknowledgment, times(1)).acknowledge();
+        // 실패 시 ack하지 않아 offset commit을 막고 재처리 가능 상태로 둔다.
+        verify(acknowledgment, after(300).never()).acknowledge();
     }
 
     @Test
@@ -101,7 +101,7 @@ class PaymentCompletedEventConsumerTest {
         // given
         PaymentCompletedEvent event = createTestEvent("order-456", 2L, 20000);
 
-        doNothing().when(salesService).completeSales(anyLong(), anyString());
+        doNothing().when(paymentOrchestrationService).handlePaymentCompleted(any(PaymentCompletedEvent.class));
 
         CountDownLatch latch = new CountDownLatch(1);
         doAnswer(invocation -> {
@@ -130,7 +130,7 @@ class PaymentCompletedEventConsumerTest {
         PaymentCompletedEvent event = createTestEvent("order-789", 3L, 50000);
         RuntimeException stockException = new RuntimeException("재고 부족: productId=100, 요청=10, 재고=5");
 
-        doThrow(stockException).when(salesService).completeSales(anyLong(), anyString());
+        doThrow(stockException).when(paymentOrchestrationService).handlePaymentCompleted(any(PaymentCompletedEvent.class));
 
         CountDownLatch latch = new CountDownLatch(1);
         doAnswer(invocation -> {
@@ -158,7 +158,7 @@ class PaymentCompletedEventConsumerTest {
         PaymentCompletedEvent event = createTestEvent("order-npe", 4L, 15000);
         NullPointerException npe = new NullPointerException("salesId가 null입니다");
 
-        doThrow(npe).when(salesService).completeSales(anyLong(), anyString());
+        doThrow(npe).when(paymentOrchestrationService).handlePaymentCompleted(any(PaymentCompletedEvent.class));
 
         CountDownLatch latch = new CountDownLatch(1);
         doAnswer(invocation -> {

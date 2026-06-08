@@ -71,7 +71,8 @@ public class OrderCreatedEventConsumer {
                 } catch (Exception e) {
                     log.error("[결제 처리 실패] orderId: {}, salesId: {}, 에러: {}",
                             orderId, salesId, e.getMessage());
-                    ack.acknowledge();  // 실패해도 ack (중복 결제 방지)
+                    // ack하지 않아 offset commit을 막고 재처리 가능 상태로 둔다.
+                    // 결제 처리는 salesId 기반 멱등성으로 중복 처리를 방어한다.
                 }
             });
         } catch (RejectedExecutionException e) {

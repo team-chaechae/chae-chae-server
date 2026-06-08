@@ -16,6 +16,7 @@ import java.util.List;
 @Builder
 public class ReqSalesInventoryDTO {
 
+    private String operationId;
     private List<SalesInventoryItem> items;
 
     @Getter

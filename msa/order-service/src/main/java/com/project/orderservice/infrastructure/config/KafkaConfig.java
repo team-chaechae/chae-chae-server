@@ -71,6 +71,11 @@ public class KafkaConfig {
     }
 
     @Bean
+    public KafkaTemplate<String, String> dlqKafkaTemplate() {
+        return new KafkaTemplate<>(stringProducerFactory());
+    }
+
+    @Bean
     public NewTopic paymentCompletedTopic() {
         return TopicBuilder.name("payment-completed")
                 .partitions(3)

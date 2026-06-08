@@ -97,6 +97,20 @@ public class OutboxEntity {
     public void markAsSendFail(String errorMessage) {
         this.status = OutboxStatus.SEND_FAIL;
         this.retryCount++;
+        this.processedAt = LocalDateTime.now();
+        this.errorMessage = truncateErrorMessage(errorMessage);
+    }
+
+    public void markAsDlqSent(String errorMessage) {
+        this.status = OutboxStatus.DLQ_SENT;
+        this.processedAt = LocalDateTime.now();
+        this.errorMessage = truncateErrorMessage(errorMessage);
+    }
+
+    public void markAsDlqFail(String errorMessage, int retryCount) {
+        this.status = OutboxStatus.SEND_FAIL;
+        this.retryCount = Math.max(0, retryCount);
+        this.processedAt = LocalDateTime.now();
         this.errorMessage = truncateErrorMessage(errorMessage);
     }
 
@@ -112,6 +126,7 @@ public class OutboxEntity {
     public enum OutboxStatus {
         INIT,
         SEND_SUCCESS,
-        SEND_FAIL
+        SEND_FAIL,
+        DLQ_SENT
     }
 }

@@ -17,10 +17,21 @@ public class InventoryChangeDTO {
     @AllArgsConstructor
     @Builder
     public static class Request {
+        private String operationId;
         private List<InventoryChangeItem> items;
 
         public static Request of(Long productId, Integer quantity) {
             return Request.builder()
+                    .items(List.of(InventoryChangeItem.builder()
+                            .productId(productId)
+                            .quantity(quantity)
+                            .build()))
+                    .build();
+        }
+
+        public static Request of(String operationId, Long productId, Integer quantity) {
+            return Request.builder()
+                    .operationId(operationId)
                     .items(List.of(InventoryChangeItem.builder()
                             .productId(productId)
                             .quantity(quantity)
@@ -44,6 +55,7 @@ public class InventoryChangeDTO {
     @Builder
     public static class Response {
         private boolean success;
+        private boolean duplicate;
         private int processedCount;
         private List<InventoryChangeResult> results;
     }

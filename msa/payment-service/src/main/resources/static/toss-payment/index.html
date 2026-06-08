@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>토스페이먼츠 결제</title>
+  <script src="https://js.tosspayments.com/v2/standard"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1d2129;
+      background: #f6f7f9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(520px, 100%);
+      background: #ffffff;
+      border: 1px solid #d8dde6;
+      border-radius: 8px;
+      padding: 28px;
+      box-shadow: 0 12px 30px rgba(29, 33, 41, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: 24px;
+      line-height: 1.3;
+    }
+
+    form {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid #c4cad4;
+      border-radius: 6px;
+      padding: 12px;
+      font: inherit;
+    }
+
+    input:focus {
+      border-color: #2164d7;
+      outline: 3px solid rgba(33, 100, 215, 0.16);
+    }
+
+    button {
+      min-height: 46px;
+      border: 0;
+      border-radius: 6px;
+      background: #2164d7;
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #9aa4b2;
+      cursor: not-allowed;
+    }
+
+    .status {
+      min-height: 22px;
+      margin: 0;
+      color: #5c6675;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>토스페이먼츠 결제</h1>
+  <form id="payment-form">
+    <label>
+      판매 ID
+      <input id="salesId" name="salesId" type="number" min="1" step="1" required>
+    </label>
+    <label>
+      주문번호
+      <input id="orderId" name="orderId" maxlength="64" required>
+    </label>
+    <label>
+      주문명
+      <input id="orderName" name="orderName" maxlength="100" value="채채 상품 주문" required>
+    </label>
+    <label>
+      결제금액
+      <input id="amount" name="amount" type="number" min="100" step="1" value="50000" required>
+    </label>
+    <label>
+      구매자명
+      <input id="customerName" name="customerName" maxlength="100" value="테스트 구매자">
+    </label>
+    <label>
+      구매자 이메일
+      <input id="customerEmail" name="customerEmail" type="email" maxlength="100" value="buyer@example.com">
+    </label>
+    <button id="pay-button" type="submit">결제창 열기</button>
+    <p id="status" class="status"></p>
+  </form>
+</main>
+
+<script>
+  const form = document.querySelector("#payment-form");
+  const payButton = document.querySelector("#pay-button");
+  const statusElement = document.querySelector("#status");
+
+  document.querySelector("#salesId").value = Date.now();
+  document.querySelector("#orderId").value = createOrderId();
+  applyQueryParams();
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    payButton.disabled = true;
+    statusElement.textContent = "결제창을 준비하고 있습니다.";
+
+    try {
+      const formData = new FormData(form);
+      const salesId = Number(formData.get("salesId"));
+      const amount = Number(formData.get("amount"));
+      const orderId = String(formData.get("orderId")).trim();
+      const orderName = String(formData.get("orderName")).trim();
+      const customerName = String(formData.get("customerName")).trim();
+      const customerEmail = String(formData.get("customerEmail")).trim();
+
+      if (!Number.isInteger(salesId) || salesId <= 0) {
+        throw new Error("판매 ID는 양수 정수여야 합니다.");
+      }
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error("결제금액은 양수 정수여야 합니다.");
+      }
+      if (!/^[A-Za-z0-9_-]{6,64}$/.test(orderId)) {
+        throw new Error("주문번호는 영문, 숫자, 하이픈, 언더스코어 6~64자여야 합니다.");
+      }
+
+      const configResponse = await fetch("/api/payment/toss/config");
+      if (!configResponse.ok) {
+        throw new Error("토스페이먼츠 설정을 불러오지 못했습니다.");
+      }
+
+      const { clientKey } = await configResponse.json();
+      if (!clientKey) {
+        throw new Error("TOSS_PAYMENTS_CLIENT_KEY 환경변수가 필요합니다.");
+      }
+
+      const tossPayments = TossPayments(clientKey);
+      const payment = tossPayments.payment({
+        customerKey: getCustomerKey()
+      });
+
+      const successUrl = new URL("/toss-payment/success.html", window.location.origin);
+      successUrl.searchParams.set("salesId", String(salesId));
+
+      await payment.requestPayment({
+        method: "CARD",
+        amount: {
+          currency: "KRW",
+          value: amount
+        },
+        orderId,
+        orderName,
+        successUrl: successUrl.toString(),
+        failUrl: new URL("/toss-payment/fail.html", window.location.origin).toString(),
+        customerName,
+        customerEmail
+      });
+    } catch (error) {
+      statusElement.textContent = error.message || "결제창을 열지 못했습니다.";
+      payButton.disabled = false;
+    }
+  });
+
+  function createOrderId() {
+    const timestamp = Date.now().toString(36);
+    const random = crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+    return `order_${timestamp}_${random}`;
+  }
+
+  function getCustomerKey() {
+    const storageKey = "chae_chae_toss_customer_key";
+    const savedCustomerKey = localStorage.getItem(storageKey);
+    if (savedCustomerKey) {
+      return savedCustomerKey;
+    }
+
+    const randomPart = crypto.getRandomValues(new Uint32Array(2))
+      .reduce((value, item) => value + item.toString(36), "");
+    const customerKey = `customer_${randomPart}`.slice(0, 50);
+    localStorage.setItem(storageKey, customerKey);
+    return customerKey;
+  }
+
+  function applyQueryParams() {
+    const params = new URLSearchParams(window.location.search);
+    applyParam("salesId", params.get("salesId"));
+    applyParam("orderId", params.get("orderId"));
+    applyParam("amount", params.get("amount"));
+    applyParam("orderName", params.get("orderName"));
+    applyParam("customerName", params.get("customerName"));
+    applyParam("customerEmail", params.get("customerEmail"));
+  }
+
+  function applyParam(id, value) {
+    if (value) {
+      document.querySelector(`#${id}`).value = value;
+    }
+  }
+</script>
+</body>
+</html>

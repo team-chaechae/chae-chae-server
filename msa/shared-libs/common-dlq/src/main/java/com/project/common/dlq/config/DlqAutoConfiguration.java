@@ -3,6 +3,7 @@ package com.project.common.dlq.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.common.dlq.alert.DlqAlertService;
 import com.project.common.dlq.alert.SlackWebhookClient;
+import com.project.common.dlq.domain.DlqRecord;
 import com.project.common.dlq.domain.DlqRecordRepository;
 import com.project.common.dlq.exception.DlqExceptionClassifier;
 import com.project.common.dlq.handler.DlqErrorHandler;
@@ -15,6 +16,9 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
+import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -36,9 +40,13 @@ import java.util.Map;
  * DLQ 자동 설정
  */
 @Slf4j
-@AutoConfiguration
+@AutoConfiguration(before = {
+        HibernateJpaAutoConfiguration.class,
+        JpaRepositoriesAutoConfiguration.class
+})
 @EnableScheduling
 @EnableConfigurationProperties(DlqProperties.class)
+@AutoConfigurationPackage(basePackageClasses = DlqRecord.class)
 @ConditionalOnProperty(prefix = "dlq", name = "enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class DlqAutoConfiguration {
