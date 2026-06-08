@@ -48,8 +48,7 @@ public class StockReservationService {
         log.info("[재고 선차감 시작] orderId: {}, salesId: {}, 상품 수: {}", orderId, salesId, items.size());
 
         List<ResReserveStockDTO.ItemResult> results = new ArrayList<>();
-        List<Long> successfullyDeducted = new ArrayList<>();
-        List<Integer> deductedQuantities = new ArrayList<>();
+        List<AppliedStockChange> appliedChanges = new ArrayList<>();
         boolean allSuccess = true;
         String failureReason = null;
 
@@ -57,9 +56,6 @@ public class StockReservationService {
             try {
                 // Redis에서 직접 차감
                 Integer currentStock = stockCacheService.decreaseStock(item.getProductId(), item.getQuantity());
-
-                successfullyDeducted.add(item.getProductId());
-                deductedQuantities.add(item.getQuantity());
 
                 // Kafka 이벤트 발행 (RESERVED 상태로 inventory INSERT 용)
                 InventoryEvent event = InventoryEvent.builder()
@@ -72,7 +68,11 @@ public class StockReservationService {
                         .occurredAt(LocalDateTime.now())
                         .currentStock(currentStock)
                         .build();
-                eventProducer.publish(event);
+                publishEventAndTrackAppliedChange(
+                        event,
+                        appliedChanges,
+                        AppliedStockChange.of(item.getProductId(), item.getQuantity(), false)
+                );
 
                 results.add(ResReserveStockDTO.ItemResult.builder()
                         .productId(item.getProductId())
@@ -105,20 +105,8 @@ public class StockReservationService {
         }
 
         // 실패 시 이미 차감된 것들 롤백
-        if (!allSuccess && !successfullyDeducted.isEmpty()) {
-            log.warn("[선차감 롤백 시작] orderId: {}, 롤백 대상: {}", orderId, successfullyDeducted);
-            for (int i = 0; i < successfullyDeducted.size(); i++) {
-                Long productId = successfullyDeducted.get(i);
-                Integer quantity = deductedQuantities.get(i);
-                try {
-                    stockCacheService.increaseStock(productId, quantity);
-                    log.info("[선차감 롤백 완료] orderId: {}, productId: {}, 복구량: {}",
-                            orderId, productId, quantity);
-                } catch (Exception e) {
-                    log.error("[선차감 롤백 실패] orderId: {}, productId: {}, 에러: {}",
-                            orderId, productId, e.getMessage());
-                }
-            }
+        if (!allSuccess && !appliedChanges.isEmpty()) {
+            rollbackReserveChanges(orderId, appliedChanges);
         }
 
         if (allSuccess) {
@@ -170,12 +158,11 @@ public class StockReservationService {
         log.info("[재고 복구 시작] orderId: {}, salesId: {}, 상품 수: {}, 사유: {}",
                 orderId, salesId, items.size(), request.getReason());
 
-        boolean allSuccess = true;
-        StringBuilder failureReasons = new StringBuilder();
+        List<AppliedStockChange> appliedChanges = new ArrayList<>();
 
         // Redis 재고 복구
-        for (ReqReleaseStockDTO.ReleaseItem item : items) {
-            try {
+        try {
+            for (ReqReleaseStockDTO.ReleaseItem item : items) {
                 // quantity가 없으면 DB에서 조회해야 하지만, 현재는 items에 quantity가 포함되어 있다고 가정
                 // TODO: 필요 시 DB에서 orderId로 quantity 조회
                 if (item.getQuantity() != null && item.getQuantity() > 0) {
@@ -192,32 +179,103 @@ public class StockReservationService {
                             .occurredAt(LocalDateTime.now())
                             .currentStock(currentStock)
                             .build();
-                    eventProducer.publish(event);
+                    publishEventAndTrackAppliedChange(
+                            event,
+                            appliedChanges,
+                            AppliedStockChange.of(item.getProductId(), item.getQuantity(), false)
+                    );
 
                     log.info("[재고 복구 성공] orderId: {}, productId: {}, 복구량: {}, 현재재고: {}",
                             orderId, item.getProductId(), item.getQuantity(), currentStock);
                 }
-            } catch (Exception e) {
-                allSuccess = false;
-                failureReasons.append("상품 ").append(item.getProductId())
-                        .append(": ").append(e.getMessage()).append("; ");
-                log.error("[재고 복구 실패] orderId: {}, productId: {}, 에러: {}",
-                        orderId, item.getProductId(), e.getMessage());
             }
-        }
 
-        // DB status 업데이트
-        try {
             jdbcInventoryRepository.cancelByOrderId(orderId);
-        } catch (Exception e) {
-            log.error("[재고 취소 상태 업데이트 실패] orderId: {}, 에러: {}", orderId, e.getMessage());
-        }
-
-        if (allSuccess) {
             log.info("[재고 복구 완료] orderId: {}, salesId: {}", orderId, salesId);
             return ResReleaseStockDTO.success(orderId, salesId);
-        } else {
-            return ResReleaseStockDTO.failed(orderId, salesId, failureReasons.toString());
+        } catch (Exception e) {
+            rollbackReleaseChanges(orderId, appliedChanges);
+            log.error("[재고 복구 실패] orderId: {}, salesId: {}, 에러: {}",
+                    orderId, salesId, e.getMessage());
+            return ResReleaseStockDTO.failed(orderId, salesId, e.getMessage());
+        }
+    }
+
+    private void publishEventAndTrackAppliedChange(
+            InventoryEvent event,
+            List<AppliedStockChange> appliedChanges,
+            AppliedStockChange unpublishedChange
+    ) {
+        try {
+            eventProducer.publish(event);
+            appliedChanges.add(unpublishedChange.markEventPublished());
+        } catch (RuntimeException e) {
+            appliedChanges.add(unpublishedChange);
+            throw e;
+        }
+    }
+
+    private void rollbackReserveChanges(String orderId, List<AppliedStockChange> appliedChanges) {
+        log.warn("[선차감 롤백 시작] orderId: {}, 롤백 대상: {}", orderId, appliedChanges.size());
+        rollbackChanges(orderId, appliedChanges, true);
+    }
+
+    private void rollbackReleaseChanges(String orderId, List<AppliedStockChange> appliedChanges) {
+        log.warn("[재고 복구 롤백 시작] orderId: {}, 롤백 대상: {}", orderId, appliedChanges.size());
+        rollbackChanges(orderId, appliedChanges, false);
+    }
+
+    private void rollbackChanges(String orderId, List<AppliedStockChange> appliedChanges, boolean reserveRollback) {
+        for (int i = appliedChanges.size() - 1; i >= 0; i--) {
+            AppliedStockChange change = appliedChanges.get(i);
+            try {
+                Integer currentStock = reserveRollback
+                        ? stockCacheService.increaseStock(change.productId(), change.quantity())
+                        : stockCacheService.decreaseStock(change.productId(), change.quantity());
+
+                if (change.eventPublished()) {
+                    eventProducer.publish(rollbackEvent(orderId, change, currentStock, reserveRollback));
+                }
+
+                log.info("[재고 롤백 완료] orderId: {}, productId: {}, quantity: {}, reserveRollback: {}",
+                        orderId, change.productId(), change.quantity(), reserveRollback);
+            } catch (Exception e) {
+                log.error("[재고 롤백 실패] orderId: {}, productId: {}, quantity: {}, error: {}",
+                        orderId, change.productId(), change.quantity(), e.getMessage());
+            }
+        }
+    }
+
+    private InventoryEvent rollbackEvent(
+            String orderId,
+            AppliedStockChange change,
+            Integer currentStock,
+            boolean reserveRollback
+    ) {
+        return InventoryEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .productId(change.productId())
+                .quantity(reserveRollback ? change.quantity() : -change.quantity())
+                .changeType(reserveRollback ? "ORDER_RESTORE" : "ORDER_DECREASE")
+                .orderId(orderId)
+                .status(reserveRollback ? "CANCELLED" : "RESERVED")
+                .occurredAt(LocalDateTime.now())
+                .currentStock(currentStock)
+                .build();
+    }
+
+    private record AppliedStockChange(
+            Long productId,
+            Integer quantity,
+            boolean eventPublished
+    ) {
+
+        private static AppliedStockChange of(Long productId, Integer quantity, boolean eventPublished) {
+            return new AppliedStockChange(productId, quantity, eventPublished);
+        }
+
+        private AppliedStockChange markEventPublished() {
+            return new AppliedStockChange(productId, quantity, true);
         }
     }
 }
