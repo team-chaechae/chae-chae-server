@@ -145,6 +145,7 @@ jobs:
           script: |
             set -euo pipefail
 
+            OCI_APP_DIR="$(printf '%s' "$OCI_APP_DIR" | tr -d '\r\n')"
             cd "$OCI_APP_DIR"
 
             git fetch origin develop
