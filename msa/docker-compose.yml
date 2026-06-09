@@ -118,7 +118,7 @@ services:
       sh -c "sleep 5 &&
              echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
              echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
-             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip redis-sentinel-1' >> /etc/sentinel.conf &&
              echo 'sentinel announce-port 26379' >> /etc/sentinel.conf &&
              echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
              echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
@@ -142,8 +142,8 @@ services:
       sh -c "sleep 5 &&
              echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
              echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
-             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
-             echo 'sentinel announce-port 26380' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip redis-sentinel-2' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26379' >> /etc/sentinel.conf &&
              echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
              echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
              echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
@@ -166,8 +166,8 @@ services:
       sh -c "sleep 5 &&
              echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
              echo 'sentinel announce-hostnames yes' >> /etc/sentinel.conf &&
-             echo 'sentinel announce-ip 127.0.0.1' >> /etc/sentinel.conf &&
-             echo 'sentinel announce-port 26381' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-ip redis-sentinel-3' >> /etc/sentinel.conf &&
+             echo 'sentinel announce-port 26379' >> /etc/sentinel.conf &&
              echo 'sentinel monitor mymaster redis-master 6379 2' >> /etc/sentinel.conf &&
              echo 'sentinel down-after-milliseconds mymaster 5000' >> /etc/sentinel.conf &&
              echo 'sentinel failover-timeout mymaster 60000' >> /etc/sentinel.conf &&
@@ -472,6 +472,7 @@ services:
 
   # Eureka Server (Service Discovery)
   eureka-server:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/eureka-server:${IMAGE_TAG:-latest}
     build:
       context: ./eureka-server
       dockerfile: Dockerfile
@@ -484,6 +485,7 @@ services:
 
   # API Gateway
   api-gateway:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/api-gateway:${IMAGE_TAG:-latest}
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
@@ -507,6 +509,10 @@ services:
       - REDIS_SENTINEL_PORT_1=26379
       - REDIS_SENTINEL_PORT_2=26379
       - REDIS_SENTINEL_PORT_3=26379
+      - REDIS_HOST=redis-master
+      - REDIS_PORT=6379
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
     networks:
@@ -514,6 +520,7 @@ services:
 
   # User Service
   user-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/user-service:${IMAGE_TAG:-latest}
     build:
       context: ./user-service
       dockerfile: Dockerfile
@@ -529,7 +536,7 @@ services:
       - redis-sentinel-2
       - redis-sentinel-3
     env_file:
-      - env.mysql.user
+      - .env.user.mysql
       - env.secret.key
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
@@ -540,6 +547,8 @@ services:
       - REDIS_SENTINEL_PORT_1=26379
       - REDIS_SENTINEL_PORT_2=26379
       - REDIS_SENTINEL_PORT_3=26379
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
     networks:
@@ -547,6 +556,7 @@ services:
 
   # Product Service
   product-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/product-service:${IMAGE_TAG:-latest}
     build:
       context: ./product-service
       dockerfile: Dockerfile
@@ -562,7 +572,7 @@ services:
       - redis-sentinel-2
       - redis-sentinel-3
     env_file:
-      - env.mysql.product
+      - .env.product.mysql
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-product:3306/product_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
@@ -579,12 +589,13 @@ services:
 
   # Inventory Service (스케일링 가능)
   inventory-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/inventory-service:${IMAGE_TAG:-latest}
     build:
       context: ./inventory-service
       dockerfile: Dockerfile
     profiles: [app]
     deploy:
-      replicas: 3
+      replicas: ${INVENTORY_SERVICE_REPLICAS:-1}
     depends_on:
       - eureka-server
       - mysql-inventory
@@ -594,7 +605,7 @@ services:
       - redis-sentinel-3
       - kafka
     env_file:
-      - env.mysql.inventory
+      - .env.inventory.mysql
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-inventory:3306/inventory_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
@@ -604,7 +615,11 @@ services:
       - REDIS_SENTINEL_PORT_1=26379
       - REDIS_SENTINEL_PORT_2=26379
       - REDIS_SENTINEL_PORT_3=26379
+      - SPRING_DATA_REDIS_HOST=redis-master
+      - SPRING_DATA_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
       - TRACING_ENABLED=true
@@ -615,12 +630,13 @@ services:
 
   # Order Service (스케일링 가능)
   order-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/order-service:${IMAGE_TAG:-latest}
     build:
       context: ./order-service
       dockerfile: Dockerfile
     profiles: [app]
     deploy:
-      replicas: 2
+      replicas: ${ORDER_SERVICE_REPLICAS:-1}
     depends_on:
       - eureka-server
       - mysql-order
@@ -630,7 +646,7 @@ services:
       - redis-sentinel-3
       - kafka
     env_file:
-      - env.mysql.order
+      - .env.order.mysql
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-order:3306/order_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
@@ -640,7 +656,11 @@ services:
       - REDIS_SENTINEL_PORT_1=26379
       - REDIS_SENTINEL_PORT_2=26379
       - REDIS_SENTINEL_PORT_3=26379
+      - SPRING_DATA_REDIS_HOST=redis-master
+      - SPRING_DATA_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
       - TRACING_ENABLED=true
@@ -651,12 +671,13 @@ services:
 
   # Payment Service
   payment-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/payment-service:${IMAGE_TAG:-latest}
     build:
       context: ./payment-service
       dockerfile: Dockerfile
     profiles: [app]
     deploy:
-      replicas: 2
+      replicas: ${PAYMENT_SERVICE_REPLICAS:-1}
     depends_on:
       - eureka-server
       - mysql-payment
@@ -667,6 +688,9 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-payment:3306/payment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ORDER_SERVICE_BASE_URL=http://order-service:8084
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
       - OTEL_COLLECTOR_HOST=otel-collector
       - OTEL_COLLECTOR_PORT=4318
       - TRACING_ENABLED=true
@@ -677,6 +701,7 @@ services:
 
   # Chatbot Service
   chatbot-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/chatbot-service:${IMAGE_TAG:-latest}
     build:
       context: ./chatbot-service
       dockerfile: Dockerfile
@@ -688,7 +713,7 @@ services:
       - eureka-server
       - mysql-chatbot
     env_file:
-      - env.mysql.chatbot
+      - .env.chatbot.mysql
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-chatbot:3306/chatbot_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
