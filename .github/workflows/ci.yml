@@ -147,6 +147,19 @@ jobs:
           script: |
             set -euo pipefail
 
+            run_as_root() {
+              if command -v sudo >/dev/null 2>&1; then
+                sudo "$@"
+              else
+                "$@"
+              fi
+            }
+
+            if ! command -v git >/dev/null 2>&1; then
+              run_as_root apt-get update
+              run_as_root apt-get install -y git
+            fi
+
             OCI_APP_DIR="$(printf '%s' "$OCI_APP_DIR" | tr -d '\r\n')"
             REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
             AUTH_REPO_URL="https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
