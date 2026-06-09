@@ -144,6 +144,7 @@ jobs:
           key: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
           port: ${{ secrets.OCI_SSH_PORT || 22 }}
           envs: DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN,GH_DEPLOY_TOKEN,GITHUB_REPOSITORY,IMAGE_TAG,OCI_APP_DIR,INVENTORY_SERVICE_REPLICAS,ORDER_SERVICE_REPLICAS,PAYMENT_SERVICE_REPLICAS
+          command_timeout: 30m
           script: |
             set -euo pipefail
 
@@ -159,6 +160,25 @@ jobs:
               run_as_root apt-get update
               run_as_root apt-get install -y git
             fi
+
+            if ! command -v docker >/dev/null 2>&1; then
+              run_as_root apt-get update
+              run_as_root apt-get install -y docker.io
+            fi
+
+            if ! docker compose version >/dev/null 2>&1; then
+              run_as_root apt-get install -y docker-compose-v2
+            fi
+
+            run_as_root systemctl enable --now docker || run_as_root service docker start || true
+
+            docker_cli() {
+              if docker info >/dev/null 2>&1; then
+                docker "$@"
+              else
+                run_as_root docker "$@"
+              fi
+            }
 
             OCI_APP_DIR="$(printf '%s' "$OCI_APP_DIR" | tr -d '\r\n')"
             REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
@@ -190,7 +210,7 @@ jobs:
               exit 1
             fi
 
-            printf '%s' "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+            printf '%s' "$DOCKER_HUB_TOKEN" | docker_cli login -u "$DOCKER_HUB_USERNAME" --password-stdin
 
             export DOCKER_IMAGE_PREFIX="$DOCKER_HUB_USERNAME"
             export IMAGE_TAG="$IMAGE_TAG"
@@ -199,8 +219,8 @@ jobs:
             export PAYMENT_SERVICE_REPLICAS="$PAYMENT_SERVICE_REPLICAS"
 
             cd "$COMPOSE_DIR"
-            docker compose --profile infra --profile app config --quiet
-            docker compose --profile infra --profile app pull
-            docker compose --profile infra --profile app up -d --no-build
-            docker compose --profile infra --profile app ps
-            docker image prune -f
+            docker_cli compose --profile infra --profile app config --quiet
+            docker_cli compose --profile infra --profile app pull
+            docker_cli compose --profile infra --profile app up -d --no-build
+            docker_cli compose --profile infra --profile app ps
+            docker_cli image prune -f
