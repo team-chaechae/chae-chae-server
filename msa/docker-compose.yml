@@ -183,7 +183,7 @@ services:
 
   # Zookeeper (for Kafka)
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.6.1
     container_name: msa-zookeeper
     profiles: [infra]
     environment:
@@ -196,7 +196,7 @@ services:
 
   # Kafka
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.6.1
     container_name: msa-kafka
     profiles: [infra]
     depends_on:
