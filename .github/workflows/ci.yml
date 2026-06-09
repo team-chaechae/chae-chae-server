@@ -131,6 +131,8 @@ jobs:
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          GH_DEPLOY_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           IMAGE_TAG: ${{ github.sha }}
           OCI_APP_DIR: ${{ secrets.OCI_APP_DIR }}
           INVENTORY_SERVICE_REPLICAS: ${{ vars.INVENTORY_SERVICE_REPLICAS || '1' }}
@@ -141,16 +143,30 @@ jobs:
           username: ${{ secrets.OCI_USERNAME }}
           key: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
           port: ${{ secrets.OCI_SSH_PORT || 22 }}
-          envs: DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN,IMAGE_TAG,OCI_APP_DIR,INVENTORY_SERVICE_REPLICAS,ORDER_SERVICE_REPLICAS,PAYMENT_SERVICE_REPLICAS
+          envs: DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN,GH_DEPLOY_TOKEN,GITHUB_REPOSITORY,IMAGE_TAG,OCI_APP_DIR,INVENTORY_SERVICE_REPLICAS,ORDER_SERVICE_REPLICAS,PAYMENT_SERVICE_REPLICAS
           script: |
             set -euo pipefail
 
             OCI_APP_DIR="$(printf '%s' "$OCI_APP_DIR" | tr -d '\r\n')"
+            REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
+            AUTH_REPO_URL="https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+            if [ ! -d "$OCI_APP_DIR/.git" ]; then
+              if [ -e "$OCI_APP_DIR" ]; then
+                echo "OCI_APP_DIR exists but is not a git repository: $OCI_APP_DIR" >&2
+                exit 1
+              fi
+
+              mkdir -p "$(dirname "$OCI_APP_DIR")"
+              git clone --branch develop --single-branch "$AUTH_REPO_URL" "$OCI_APP_DIR"
+              git -C "$OCI_APP_DIR" remote set-url origin "$REPO_URL"
+            fi
+
             cd "$OCI_APP_DIR"
 
-            git fetch origin develop
             git checkout develop
-            git pull --ff-only origin develop
+            git pull --ff-only "$AUTH_REPO_URL" develop
+            git remote set-url origin "$REPO_URL"
 
             if [ -f docker-compose.yml ]; then
               COMPOSE_DIR="$PWD"
