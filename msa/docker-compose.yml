@@ -98,6 +98,19 @@ services:
     networks:
       - msa-network
 
+  mysql-delivery:
+    image: mysql:8.0
+    container_name: msa-mysql-delivery
+    profiles: [infra]
+    env_file:
+      - .env.delivery.mysql
+    ports:
+      - "3314:3306"
+    volumes:
+      - msa-mysql-delivery-data:/var/lib/mysql
+    networks:
+      - msa-network
+
   # Redis Master
   redis-master:
     image: redis:7-alpine
@@ -740,6 +753,34 @@ services:
     networks:
       - msa-network
 
+  # Delivery Service
+  delivery-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/delivery-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./delivery-service
+      dockerfile: Dockerfile
+    container_name: msa-delivery-service
+    profiles: [app]
+    ports:
+      - "8187:8087"
+    depends_on:
+      - eureka-server
+      - mysql-delivery
+    env_file:
+      - .env.delivery.mysql
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-delivery:3306/delivery_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
+    networks:
+      - msa-network
+
   # Chatbot Service
   chatbot-service:
     image: ${DOCKER_IMAGE_PREFIX:-local}/chatbot-service:${IMAGE_TAG:-latest}
@@ -770,6 +811,7 @@ volumes:
   msa-mysql-chatbot-data:
   msa-mysql-payment-data:
   msa-mysql-coupon-data:
+  msa-mysql-delivery-data:
   msa-tempo-data:
   msa-loki-data:
   msa-logs:

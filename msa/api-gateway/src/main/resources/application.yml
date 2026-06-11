@@ -50,6 +50,11 @@ spring:
           predicates:
             - Path=/api/coupons/**
 
+        - id: delivery-service
+          uri: lb://delivery-service
+          predicates:
+            - Path=/api/deliveries/**
+
         - id: chatbot-service
           uri: lb://chatbot-service
           predicates:
