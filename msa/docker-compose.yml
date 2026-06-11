@@ -232,6 +232,23 @@ services:
     networks:
       - msa-network
 
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v3.6
+    container_name: msa-traefik
+    profiles: [infra]
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - msa-network
+
   # ============================================
   # MONITORING SERVICES (profile: monitoring)
   # ============================================
@@ -517,6 +534,12 @@ services:
       - OTEL_COLLECTOR_PORT=4318
     networks:
       - msa-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-gateway.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.api-gateway.entrypoints=web"
+      - "traefik.http.routers.api-gateway.priority=100"
+      - "traefik.http.services.api-gateway.loadbalancer.server.port=8080"
 
   # User Service
   user-service:
@@ -720,6 +743,25 @@ services:
       - CHATBOT_BASE-URL_FAST-API=http://host.docker.internal:8000
     networks:
       - msa-network
+
+  # React Frontend
+  frontend:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/frontend:${IMAGE_TAG:-latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: msa-frontend
+    profiles: [app]
+    depends_on:
+      - api-gateway
+    networks:
+      - msa-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
 
 volumes:
   msa-mysql-user-data:

@@ -6,6 +6,10 @@
 docker-compose.override.yml
 .codex/
 
+# Frontend local artifacts
+frontend/node_modules/
+frontend/dist/
+
 # Local broker data / notes
 docker-data/
 *.md
