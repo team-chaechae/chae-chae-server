@@ -85,6 +85,19 @@ services:
     networks:
       - msa-network
 
+  mysql-coupon:
+    image: mysql:8.0
+    container_name: msa-mysql-coupon
+    profiles: [infra]
+    env_file:
+      - .env.coupon.mysql
+    ports:
+      - "3313:3306"
+    volumes:
+      - msa-mysql-coupon-data:/var/lib/mysql
+    networks:
+      - msa-network
+
   # Redis Master
   redis-master:
     image: redis:7-alpine
@@ -699,6 +712,34 @@ services:
     networks:
       - msa-network
 
+  # Coupon Service
+  coupon-service:
+    image: ${DOCKER_IMAGE_PREFIX:-local}/coupon-service:${IMAGE_TAG:-latest}
+    build:
+      context: ./coupon-service
+      dockerfile: Dockerfile
+    container_name: msa-coupon-service
+    profiles: [app]
+    ports:
+      - "8186:8086"
+    depends_on:
+      - eureka-server
+      - mysql-coupon
+    env_file:
+      - .env.coupon.mysql
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-coupon:3306/coupon_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - LOKI_HOST=loki
+      - LOKI_PORT=3100
+      - OTEL_COLLECTOR_HOST=otel-collector
+      - OTEL_COLLECTOR_PORT=4318
+      - TRACING_ENABLED=true
+    volumes:
+      - msa-logs:/logs
+    networks:
+      - msa-network
+
   # Chatbot Service
   chatbot-service:
     image: ${DOCKER_IMAGE_PREFIX:-local}/chatbot-service:${IMAGE_TAG:-latest}
@@ -728,6 +769,7 @@ volumes:
   msa-mysql-order-data:
   msa-mysql-chatbot-data:
   msa-mysql-payment-data:
+  msa-mysql-coupon-data:
   msa-tempo-data:
   msa-loki-data:
   msa-logs:
