@@ -45,6 +45,9 @@ public class ProductEntity {
     @Enumerated(EnumType.STRING)
     private ProductStatusType productStatusType;
 
+    @Column(name = "is_promo", nullable = false)
+    private boolean promo;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -62,6 +65,7 @@ public class ProductEntity {
         this.category = category;
         this.price = price;
         this.productStatusType = productStatusType;
+        this.promo = false;
     }
 
     public static ProductEntity createProducts(String name, String category, Integer price) {
@@ -73,4 +77,11 @@ public class ProductEntity {
             .build();
     }
 
+    public void markPromo() {
+        this.promo = true;
+    }
+
+    public void releasePromo() {
+        this.promo = false;
+    }
 }

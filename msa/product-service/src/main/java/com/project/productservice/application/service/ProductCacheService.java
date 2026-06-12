@@ -29,10 +29,11 @@ public class ProductCacheService {
 
     private final TwoLevelCacheService cacheService;
     private final ProductsRepository productsRepository;
+    private final ProductPriceService productPriceService;
 
     /**
-     * 애플리케이션 시작 시 전체 상품 캐시 워밍업
-     * L1 (Caffeine) + L2 (Redis)에 모든 상품 정보 로드
+     * 애플리케이션 시작 시 상품 캐시 상태 확인.
+     * 내부 주문용 가격은 프로모션 시간 경계에서 바뀌므로 워밍업하지 않는다.
      */
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
@@ -43,31 +44,9 @@ public class ProductCacheService {
         try {
             List<ProductEntity> allProducts = productsRepository.findAll();
             log.info("[Cache Warmup] DB에서 {}개 상품 조회 완료", allProducts.size());
-            int count = 0;
-
-            for (ProductEntity product : allProducts) {
-                try {
-                    // ProductInternalDTO만 캐싱 (order-service 호출용, 경량)
-                    String internalKey = "internal:" + product.getId();
-                    ProductInternalDTO dto = ProductInternalDTO.from(product);
-                    cacheService.put(
-                        TwoLevelCacheConfig.PRODUCT_CACHE,
-                        internalKey,
-                        dto
-                    );
-
-                    if (count < 3) {
-                        log.debug("[Cache Warmup] 캐싱 - productId: {}", product.getId());
-                    }
-                    count++;
-                } catch (Exception e) {
-                    log.error("[Cache Warmup] 캐싱 실패 - productId: {}, error: {}",
-                        product.getId(), e.getMessage());
-                }
-            }
 
             long elapsed = System.currentTimeMillis() - startTime;
-            log.info("[Cache Warmup] 완료 - {}개 상품 캐싱, 소요시간: {}ms", count, elapsed);
+            log.info("[Cache Warmup] 완료 - 프로모션 가격 정확성을 위해 내부 주문용 가격 캐시는 워밍업하지 않음, 소요시간: {}ms", elapsed);
         } catch (Exception e) {
             log.error("[Cache Warmup] 실패 - {}", e.getMessage(), e);
         }
@@ -87,21 +66,13 @@ public class ProductCacheService {
     }
 
     /**
-     * 내부 서비스용 상품 조회 (경량 DTO 캐싱)
-     * productId, name, category, price만 캐싱
+     * 내부 서비스용 상품 조회.
+     * 주문 가격 스냅샷은 현재 프로모션 가격을 반영해야 하므로 캐시하지 않는다.
      */
     @Transactional(readOnly = true)
     public ProductInternalDTO getProductInternal(Long productId) {
-        String cacheKey = "internal:" + productId;
-        return cacheService.get(
-            TwoLevelCacheConfig.PRODUCT_CACHE,
-            cacheKey,
-            ProductInternalDTO.class,
-            () -> {
-                ProductEntity product = productsRepository.findProductByProductId(productId);
-                return ProductInternalDTO.from(product);
-            }
-        );
+        ProductEntity product = productsRepository.findProductByProductId(productId);
+        return ProductInternalDTO.from(product, productPriceService.resolve(product));
     }
 
     /**
@@ -129,6 +100,11 @@ public class ProductCacheService {
     public void evictProductCache(Long productId) {
         cacheService.evict(TwoLevelCacheConfig.PRODUCT_CACHE, productId);
         log.info("Product cache evicted for productId: {}", productId);
+    }
+
+    public void evictProductInternalCache(Long productId) {
+        cacheService.evict(TwoLevelCacheConfig.PRODUCT_CACHE, "internal:" + productId);
+        log.info("Product internal cache evicted for productId: {}", productId);
     }
 
     /**

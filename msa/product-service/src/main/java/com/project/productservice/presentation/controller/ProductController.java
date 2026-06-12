@@ -3,10 +3,13 @@ package com.project.productservice.presentation.controller;
 import com.project.productservice.application.global.dto.ResDTO;
 import com.project.productservice.application.response.ResCreateProductPostDTO;
 import com.project.productservice.application.response.ResGetProductWithOrderStatus;
+import com.project.productservice.application.response.ResPromotionDTO;
 import com.project.productservice.application.response.ResProductSearchWithOrderStatusDTO;
 import com.project.productservice.application.service.ProductsService;
 import com.project.productservice.domain.model.constraint.ProductStatusType;
 import com.project.productservice.presentation.request.ReqCreateProductsDTO;
+import com.project.productservice.presentation.request.ReqCreatePromotionDTO;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,7 +39,7 @@ public class ProductController {
 
     @PostMapping()
     public ResponseEntity<ResDTO<ResCreateProductPostDTO>> createProduct(
-        @RequestBody ReqCreateProductsDTO dto) {
+        @RequestBody @Valid ReqCreateProductsDTO dto) {
 
         return new ResponseEntity<>(
             ResDTO.<ResCreateProductPostDTO>builder()
@@ -44,6 +48,36 @@ public class ProductController {
                 .data(productsService.createProductInfo(dto))
                 .build(),
                 HttpStatus.CREATED
+        );
+    }
+
+    @PostMapping("/{productId}/promotions")
+    public ResponseEntity<ResDTO<ResPromotionDTO>> createPromotion(
+        @PathVariable Long productId,
+        @RequestBody @Valid ReqCreatePromotionDTO dto) {
+
+        return new ResponseEntity<>(
+            ResDTO.<ResPromotionDTO>builder()
+                .code(HttpStatus.CREATED.value())
+                .message("프로모션 생성 완료")
+                .data(productsService.createPromotion(productId, dto))
+                .build(),
+            HttpStatus.CREATED
+        );
+    }
+
+    @PutMapping("/{productId}/promotions")
+    public ResponseEntity<ResDTO<ResPromotionDTO>> updatePromotion(
+        @PathVariable Long productId,
+        @RequestBody @Valid ReqCreatePromotionDTO dto) {
+
+        return new ResponseEntity<>(
+            ResDTO.<ResPromotionDTO>builder()
+                .code(HttpStatus.OK.value())
+                .message("프로모션 수정 완료")
+                .data(productsService.updatePromotion(productId, dto))
+                .build(),
+            HttpStatus.OK
         );
     }
     @GetMapping("/{productId}")

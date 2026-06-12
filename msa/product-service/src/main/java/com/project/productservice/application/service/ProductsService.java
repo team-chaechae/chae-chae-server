@@ -3,9 +3,11 @@ package com.project.productservice.application.service;
 
 import com.project.productservice.application.response.ResCreateProductPostDTO;
 import com.project.productservice.application.response.ResGetProductWithOrderStatus;
+import com.project.productservice.application.response.ResPromotionDTO;
 import com.project.productservice.application.response.ResProductSearchWithOrderStatusDTO;
 import com.project.productservice.domain.model.constraint.ProductStatusType;
 import com.project.productservice.presentation.request.ReqCreateProductsDTO;
+import com.project.productservice.presentation.request.ReqCreatePromotionDTO;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +15,8 @@ import org.springframework.data.domain.Pageable;
 public interface ProductsService {
 
     ResCreateProductPostDTO createProductInfo(ReqCreateProductsDTO request);
+    ResPromotionDTO createPromotion(Long productId, ReqCreatePromotionDTO request);
+    ResPromotionDTO updatePromotion(Long productId, ReqCreatePromotionDTO request);
     ResGetProductWithOrderStatus getProductInfo(Long productId);
     ResProductSearchWithOrderStatusDTO getProductSearchInfo(
         Pageable pageable,
