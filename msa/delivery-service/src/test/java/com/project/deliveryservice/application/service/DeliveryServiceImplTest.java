@@ -49,6 +49,17 @@ class DeliveryServiceImplTest {
     }
 
     @Test
+    void createDeliveryIfAbsentReturnsExistingDeliveryForDuplicateSalesId() {
+        ResDeliveryDTO created = createDelivery(1L);
+
+        ResDeliveryDTO duplicated = deliveryService.createDeliveryIfAbsent(createDeliveryRequest(1L));
+
+        assertThat(duplicated.id()).isEqualTo(created.id());
+        assertThat(duplicated.salesId()).isEqualTo(1L);
+        assertThat(deliveryRepository.count()).isEqualTo(1L);
+    }
+
+    @Test
     void shipDeliveryRequiresTrackingNumber() {
         ResDeliveryDTO delivery = createDelivery(1L);
 
@@ -94,7 +105,11 @@ class DeliveryServiceImplTest {
     }
 
     private ResDeliveryDTO createDelivery(Long salesId) {
-        return deliveryService.createDelivery(ReqCreateDeliveryDTO.builder()
+        return deliveryService.createDelivery(createDeliveryRequest(salesId));
+    }
+
+    private ReqCreateDeliveryDTO createDeliveryRequest(Long salesId) {
+        return ReqCreateDeliveryDTO.builder()
                 .salesId(salesId)
                 .userId(10L)
                 .recipientName("홍길동")
@@ -103,6 +118,6 @@ class DeliveryServiceImplTest {
                 .address("서울시 강남구")
                 .addressDetail("101동 1001호")
                 .deliveryMemo("문 앞")
-                .build());
+                .build();
     }
 }

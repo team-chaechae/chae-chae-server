@@ -3,6 +3,7 @@ package com.project.orderservice.application.service;
 import com.project.orderservice.application.global.exception.BadRequestException;
 import com.project.orderservice.application.response.ResSalesCreateDTO;
 import com.project.orderservice.domain.model.SalesEntity;
+import com.project.orderservice.domain.repository.SalesDeliveryStatusRepository;
 import com.project.orderservice.domain.repository.SalesRepository;
 import com.project.orderservice.infrastructure.client.ProductCacheClient;
 import com.project.orderservice.infrastructure.client.dto.ProductDTO;
@@ -38,6 +39,9 @@ class SalesServiceImplCreateTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private SalesDeliveryStatusRepository salesDeliveryStatusRepository;
+
     private SalesServiceImpl salesService;
 
     @BeforeEach
@@ -46,7 +50,8 @@ class SalesServiceImplCreateTest {
                 salesRepository,
                 productCacheClient,
                 eventPublisher,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                salesDeliveryStatusRepository
         );
     }
 
@@ -55,6 +60,7 @@ class SalesServiceImplCreateTest {
     void createSales_SavesSalesAndPublishesEvent() {
         ReqCreateSalesDTO dto = ReqCreateSalesDTO.builder()
                 .userId(1L)
+                .deliveryAddress(deliveryAddress())
                 .salesItems(List.of(
                         ReqCreateSalesDTO.SalesItem.builder().productId(10L).quantity(2).build(),
                         ReqCreateSalesDTO.SalesItem.builder().productId(20L).quantity(1).build()
@@ -80,7 +86,15 @@ class SalesServiceImplCreateTest {
 
         ArgumentCaptor<SalesEntity> salesCaptor = ArgumentCaptor.forClass(SalesEntity.class);
         verify(salesRepository).save(salesCaptor.capture());
-        assertThat(salesCaptor.getValue().getItems()).hasSize(2);
+        SalesEntity savedSales = salesCaptor.getValue();
+        assertThat(savedSales.getUserId()).isEqualTo(1L);
+        assertThat(savedSales.getItems()).hasSize(2);
+        assertThat(savedSales.getDeliveryAddress().getRecipientName()).isEqualTo("홍길동");
+        assertThat(savedSales.getDeliveryAddress().getRecipientPhone()).isEqualTo("010-1234-5678");
+        assertThat(savedSales.getDeliveryAddress().getZipCode()).isEqualTo("12345");
+        assertThat(savedSales.getDeliveryAddress().getAddress()).isEqualTo("서울시 강남구");
+        assertThat(savedSales.getDeliveryAddress().getAddressDetail()).isEqualTo("101동 1001호");
+        assertThat(savedSales.getDeliveryAddress().getDeliveryMemo()).isEqualTo("문 앞");
         verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(Object.class));
     }
 
@@ -89,6 +103,7 @@ class SalesServiceImplCreateTest {
     void createSales_ThrowsWhenProductMissing() {
         ReqCreateSalesDTO dto = ReqCreateSalesDTO.builder()
                 .userId(1L)
+                .deliveryAddress(deliveryAddress())
                 .salesItems(List.of(
                         ReqCreateSalesDTO.SalesItem.builder().productId(10L).quantity(2).build()
                 ))
@@ -98,5 +113,16 @@ class SalesServiceImplCreateTest {
 
         assertThatThrownBy(() -> salesService.createSales(dto))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    private ReqCreateSalesDTO.DeliveryAddress deliveryAddress() {
+        return ReqCreateSalesDTO.DeliveryAddress.builder()
+                .recipientName("홍길동")
+                .recipientPhone("010-1234-5678")
+                .zipCode("12345")
+                .address("서울시 강남구")
+                .addressDetail("101동 1001호")
+                .deliveryMemo("문 앞")
+                .build();
     }
 }

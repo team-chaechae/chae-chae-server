@@ -8,6 +8,10 @@ public interface DeliveryService {
 
     ResDeliveryDTO createDelivery(ReqCreateDeliveryDTO request);
 
+    ResDeliveryDTO createDeliveryIfAbsent(ReqCreateDeliveryDTO request);
+
+    void createDeliveryFromEventIfAbsent(ReqCreateDeliveryDTO request);
+
     ResDeliveryDTO getDelivery(Long deliveryId);
 
     ResDeliveryDTO getDeliveryBySalesId(Long salesId);
@@ -19,4 +23,6 @@ public interface DeliveryService {
     ResDeliveryDTO completeDelivery(Long deliveryId);
 
     ResDeliveryDTO cancelDelivery(Long deliveryId);
+
+    void cancelDeliveryBySalesId(Long salesId, String orderId, String reason);
 }

@@ -1,6 +1,8 @@
 package com.project.orderservice.application.event.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.orderservice.application.event.DeliveryCancelRequestedInternalEvent;
+import com.project.orderservice.application.event.DeliveryCreateRequestedInternalEvent;
 import com.project.orderservice.application.event.OrderCreatedInternalEvent;
 import com.project.orderservice.domain.model.OutboxEntity.OutboxStatus;
 import com.project.orderservice.domain.repository.OutboxRepository;
@@ -125,6 +127,70 @@ class OrderEventSendServiceTest {
                 .hasMessageContaining("Outbox 성공 상태 업데이트 실패");
     }
 
+    @Test
+    @DisplayName("배송 생성 요청 Kafka 발행 성공 시 Outbox를 SEND_SUCCESS로 변경한다")
+    void sendDeliveryCreateRequested_Success_MarksOutboxSuccess() {
+        OrderEventSendService service = new OrderEventSendService(
+                kafkaTemplate,
+                outboxRepository,
+                new ObjectMapper().findAndRegisterModules()
+        );
+        DeliveryCreateRequestedInternalEvent event = deliveryEvent();
+        given(kafkaTemplate.send(eq("delivery-create-requested"), eq("order-1"), anyString()))
+                .willReturn(CompletableFuture.completedFuture(null));
+        given(outboxRepository.updateStatusSuccessByAggregateIdAndEventType(
+                eq("10"),
+                eq("DELIVERY_CREATE_REQUESTED"),
+                eq(OutboxStatus.INIT),
+                eq(OutboxStatus.SEND_SUCCESS),
+                any()
+        )).willReturn(1);
+
+        service.sendDeliveryCreateRequested(event);
+
+        verify(outboxRepository).updateStatusSuccessByAggregateIdAndEventType(
+                eq("10"),
+                eq("DELIVERY_CREATE_REQUESTED"),
+                eq(OutboxStatus.INIT),
+                eq(OutboxStatus.SEND_SUCCESS),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("배송 취소 요청 Kafka 발행 성공 시 Outbox를 SEND_SUCCESS로 변경한다")
+    void sendDeliveryCancelRequested_Success_MarksOutboxSuccess() {
+        OrderEventSendService service = new OrderEventSendService(
+                kafkaTemplate,
+                outboxRepository,
+                new ObjectMapper().findAndRegisterModules()
+        );
+        DeliveryCancelRequestedInternalEvent event = DeliveryCancelRequestedInternalEvent.of(
+                "order-1",
+                10L,
+                "환불 완료"
+        );
+        given(kafkaTemplate.send(eq("delivery-cancel-requested"), eq("order-1"), anyString()))
+                .willReturn(CompletableFuture.completedFuture(null));
+        given(outboxRepository.updateStatusSuccessByAggregateIdAndEventType(
+                eq("10"),
+                eq("DELIVERY_CANCEL_REQUESTED"),
+                eq(OutboxStatus.INIT),
+                eq(OutboxStatus.SEND_SUCCESS),
+                any()
+        )).willReturn(1);
+
+        service.sendDeliveryCancelRequested(event);
+
+        verify(outboxRepository).updateStatusSuccessByAggregateIdAndEventType(
+                eq("10"),
+                eq("DELIVERY_CANCEL_REQUESTED"),
+                eq(OutboxStatus.INIT),
+                eq(OutboxStatus.SEND_SUCCESS),
+                any()
+        );
+    }
+
     private OrderCreatedInternalEvent event() {
         return OrderCreatedInternalEvent.of(
                 "order-1",
@@ -136,6 +202,20 @@ class OrderEventSendServiceTest {
                         .price(1000)
                         .build()),
                 1000
+        );
+    }
+
+    private DeliveryCreateRequestedInternalEvent deliveryEvent() {
+        return DeliveryCreateRequestedInternalEvent.of(
+                "order-1",
+                10L,
+                1L,
+                "홍길동",
+                "010-1234-5678",
+                "12345",
+                "서울시 강남구",
+                "101동 1001호",
+                "문 앞"
         );
     }
 }

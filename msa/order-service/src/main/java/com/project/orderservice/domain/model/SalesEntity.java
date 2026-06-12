@@ -26,6 +26,12 @@ public class SalesEntity {
     @Column(name = "order_id", nullable = false, unique = true)
     private String orderId;
 
+    @Column(name = "user_id")
+    private Long userId;
+
+    @Embedded
+    private DeliveryAddressSnapshot deliveryAddress;
+
     @OneToMany(mappedBy = "sales", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SalesItemEntity> items = new ArrayList<>();
 
@@ -63,9 +69,16 @@ public class SalesEntity {
      * 정적 팩토리 메서드 - Sales와 Items를 함께 생성
      * 주문 생성 시 PENDING 상태로 시작 (비동기 처리 후 COMPLETED)
      */
-    public static SalesEntity createWithItems(String orderId, List<SalesItemEntity> items) {
+    public static SalesEntity createWithItems(
+            String orderId,
+            Long userId,
+            DeliveryAddressSnapshot deliveryAddress,
+            List<SalesItemEntity> items
+    ) {
         SalesEntity sales = new SalesEntity();
         sales.orderId = orderId;
+        sales.userId = userId;
+        sales.deliveryAddress = deliveryAddress;
         items.forEach(sales::addItem);
         return sales;
     }

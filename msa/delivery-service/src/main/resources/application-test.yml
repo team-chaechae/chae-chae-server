@@ -11,6 +11,14 @@ spring:
       hibernate:
         format_sql: true
     show-sql: false
+  kafka:
+    admin:
+      auto-create: false
+    listener:
+      auto-startup: false
+delivery:
+  events:
+    kafka-publish-enabled: false
 
 eureka:
   client:

@@ -2,6 +2,7 @@ package com.project.orderservice.infrastructure.outbox;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.common.dlq.domain.DlqRecordRepository;
+import com.project.orderservice.domain.model.DeliveryAddressSnapshot;
 import com.project.orderservice.domain.model.OutboxEntity;
 import com.project.orderservice.domain.model.OutboxEntity.OutboxStatus;
 import com.project.orderservice.domain.model.SalesEntity;
@@ -119,7 +120,7 @@ class OutboxTransactionConsistencyTest {
             // when
             SalesEntity savedSales = transactionTemplate.execute(status -> {
                 SalesItemEntity item = SalesItemEntity.create(1L, "테스트 상품", 2, 10000);
-                SalesEntity sales = SalesEntity.createWithItems(orderId, List.of(item));
+                SalesEntity sales = SalesEntity.createWithItems(orderId, 1L, deliveryAddress(), List.of(item));
                 SalesEntity saved = salesRepository.save(sales);
 
                 OutboxEntity outbox = OutboxEntity.create(
@@ -155,7 +156,7 @@ class OutboxTransactionConsistencyTest {
             assertThatThrownBy(() -> {
                 transactionTemplate.execute(status -> {
                     SalesItemEntity item = SalesItemEntity.create(1L, "테스트 상품", 2, 10000);
-                    SalesEntity sales = SalesEntity.createWithItems(orderId, List.of(item));
+                    SalesEntity sales = SalesEntity.createWithItems(orderId, 1L, deliveryAddress(), List.of(item));
                     SalesEntity saved = salesRepository.save(sales);
 
                     OutboxEntity outbox = OutboxEntity.create(
@@ -176,6 +177,17 @@ class OutboxTransactionConsistencyTest {
             // 롤백되어 Outbox가 저장되지 않음
             assertThat(outboxRepository.count()).isEqualTo(initialOutboxCount);
         }
+    }
+
+    private DeliveryAddressSnapshot deliveryAddress() {
+        return DeliveryAddressSnapshot.create(
+                "테스트 수령인",
+                "010-0000-0000",
+                "00000",
+                "테스트 주소",
+                null,
+                null
+        );
     }
 
     @Nested

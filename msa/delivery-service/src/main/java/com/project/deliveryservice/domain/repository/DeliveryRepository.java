@@ -19,4 +19,8 @@ public interface DeliveryRepository extends JpaRepository<DeliveryEntity, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select delivery from DeliveryEntity delivery where delivery.id = :deliveryId")
     Optional<DeliveryEntity> findByIdForUpdate(@Param("deliveryId") Long deliveryId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select delivery from DeliveryEntity delivery where delivery.salesId = :salesId")
+    Optional<DeliveryEntity> findBySalesIdForUpdate(@Param("salesId") Long salesId);
 }

@@ -1,6 +1,7 @@
 package com.project.orderservice.infrastructure.config;
 
 import com.project.orderservice.infrastructure.config.kafka.KafkaConsumerHelper;
+import com.project.orderservice.infrastructure.kafka.dto.DeliveryStatusChangedEvent;
 import com.project.orderservice.infrastructure.kafka.dto.InventoryConfirmedEvent;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentRefundedEvent;
@@ -93,6 +94,33 @@ public class KafkaConfig {
                 .build();
     }
 
+    @Bean
+    public NewTopic deliveryCreateRequestedTopic() {
+        return TopicBuilder.name("delivery-create-requested")
+                .partitions(3)
+                .replicas(1)
+                .config("retention.ms", "604800000")
+                .build();
+    }
+
+    @Bean
+    public NewTopic deliveryStatusChangedTopic() {
+        return TopicBuilder.name("delivery-status-changed")
+                .partitions(3)
+                .replicas(1)
+                .config("retention.ms", "604800000")
+                .build();
+    }
+
+    @Bean
+    public NewTopic deliveryCancelRequestedTopic() {
+        return TopicBuilder.name("delivery-cancel-requested")
+                .partitions(3)
+                .replicas(1)
+                .config("retention.ms", "604800000")
+                .build();
+    }
+
     // ==================== Consumer 설정 (ErrorHandlingDeserializer 적용) ====================
 
     @Bean
@@ -148,6 +176,26 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, InventoryConfirmedEvent> inventoryConfirmedListenerFactory() {
         return KafkaConsumerHelper.createListenerFactory(
                 inventoryConfirmedConsumerFactory(),
+                kafkaErrorHandler,
+                3
+        );
+    }
+
+    // ==================== Delivery Status Changed Consumer 설정 ====================
+
+    @Bean
+    public ConsumerFactory<String, DeliveryStatusChangedEvent> deliveryStatusChangedConsumerFactory() {
+        return KafkaConsumerHelper.createConsumerFactory(
+                bootstrapServers,
+                "order-delivery-status-group",
+                DeliveryStatusChangedEvent.class
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, DeliveryStatusChangedEvent> deliveryStatusChangedListenerFactory() {
+        return KafkaConsumerHelper.createListenerFactory(
+                deliveryStatusChangedConsumerFactory(),
                 kafkaErrorHandler,
                 3
         );

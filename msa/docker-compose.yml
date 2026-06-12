@@ -771,6 +771,7 @@ services:
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-delivery:3306/delivery_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - LOKI_HOST=loki
       - LOKI_PORT=3100
       - OTEL_COLLECTOR_HOST=otel-collector

@@ -1,5 +1,6 @@
 package com.project.orderservice.application.service;
 
+import com.project.orderservice.domain.model.DeliveryAddressSnapshot;
 import com.project.orderservice.domain.model.SalesEntity;
 import com.project.orderservice.domain.model.SalesItemEntity;
 import com.project.orderservice.domain.model.SalesStatus;
@@ -32,9 +33,20 @@ class SalesServiceRaceConditionTest {
 
     private SalesEntity createPendingSales() {
         SalesItemEntity item = SalesItemEntity.create(1L, "테스트 상품", 1, 10000);
-        SalesEntity sales = SalesEntity.createWithItems(ORDER_ID, List.of(item));
+        SalesEntity sales = SalesEntity.createWithItems(ORDER_ID, 1L, deliveryAddress(), List.of(item));
         ReflectionTestUtils.setField(sales, "id", SALES_ID);
         return sales;
+    }
+
+    private DeliveryAddressSnapshot deliveryAddress() {
+        return DeliveryAddressSnapshot.create(
+                "테스트 수령인",
+                "010-0000-0000",
+                "00000",
+                "테스트 주소",
+                null,
+                null
+        );
     }
 
     @Test

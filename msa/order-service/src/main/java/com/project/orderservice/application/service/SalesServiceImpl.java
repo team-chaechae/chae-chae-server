@@ -1,12 +1,17 @@
 package com.project.orderservice.application.service;
 
+import com.project.orderservice.application.event.DeliveryCancelRequestedInternalEvent;
+import com.project.orderservice.application.event.DeliveryCreateRequestedInternalEvent;
 import com.project.orderservice.application.event.OrderCreatedInternalEvent;
 import com.project.orderservice.application.global.exception.BadRequestException;
 import com.project.orderservice.application.response.ResSalesCreateDTO;
 import com.project.orderservice.application.response.ResSalesGetByIdDTO;
 import com.project.orderservice.application.response.ResSalesSearchDTO;
+import com.project.orderservice.domain.model.SalesDeliveryStatusEntity;
+import com.project.orderservice.domain.model.DeliveryAddressSnapshot;
 import com.project.orderservice.domain.model.SalesEntity;
 import com.project.orderservice.domain.model.SalesItemEntity;
+import com.project.orderservice.domain.repository.SalesDeliveryStatusRepository;
 import com.project.orderservice.domain.repository.SalesRepository;
 import com.project.orderservice.infrastructure.client.ProductCacheClient;
 import com.project.orderservice.infrastructure.client.dto.ProductDTO;
@@ -35,6 +40,7 @@ public class SalesServiceImpl implements SalesService {
     private final ProductCacheClient productCacheClient;
     private final ApplicationEventPublisher eventPublisher;
     private final MeterRegistry meterRegistry;
+    private final SalesDeliveryStatusRepository salesDeliveryStatusRepository;
 
     /**
      * 주문 생성 (트랜잭셔널 아웃박스 패턴)
@@ -50,7 +56,12 @@ public class SalesServiceImpl implements SalesService {
         String orderId = UUID.randomUUID().toString();
 
         List<SalesItemEntity> salesItems = createSalesItems(dto.getSalesItems());
-        SalesEntity sales = SalesEntity.createWithItems(orderId, salesItems);
+        SalesEntity sales = SalesEntity.createWithItems(
+                orderId,
+                dto.getUserId(),
+                toDeliveryAddressSnapshot(dto.getDeliveryAddress()),
+                salesItems
+        );
         SalesEntity savedSales = salesRepository.save(sales);
 
         publishOrderCreatedEvent(orderId, savedSales);
@@ -83,11 +94,27 @@ public class SalesServiceImpl implements SalesService {
             LocalDate exactDate,
             List<String> sortList
     ) {
-        return ResSalesSearchDTO.from(
-                salesRepository.findSalesByDeletedAtIsNullWithCondition(
-                        pageable, deletedCond, productName, startDate, endDate, exactDate, sortList
-                )
+        var salesPage = salesRepository.findSalesByDeletedAtIsNullWithCondition(
+                pageable, deletedCond, productName, startDate, endDate, exactDate, sortList
         );
+        List<Long> salesIds = salesPage.getContent().stream()
+                .map(SalesEntity::getId)
+                .toList();
+        Map<Long, SalesDeliveryStatusEntity> deliveryStatusBySalesId = findDeliveryStatusBySalesId(salesIds);
+
+        return ResSalesSearchDTO.from(
+                salesPage,
+                deliveryStatusBySalesId
+        );
+    }
+
+    private Map<Long, SalesDeliveryStatusEntity> findDeliveryStatusBySalesId(List<Long> salesIds) {
+        if (salesIds.isEmpty()) {
+            return Map.of();
+        }
+        return salesDeliveryStatusRepository.findBySalesIdIn(salesIds)
+                .stream()
+                .collect(Collectors.toMap(SalesDeliveryStatusEntity::getSalesId, status -> status));
     }
 
     @Override
@@ -110,6 +137,7 @@ public class SalesServiceImpl implements SalesService {
         }
 
         sales.complete();
+        publishDeliveryCreateRequestedEvent(sales);
         recordE2EDurationIfPossible(sales, orderId);
         log.info("[주문 상태 완료] orderId: {}, salesId: {}, status: {}",
                 orderId, salesId, sales.getStatus());
@@ -131,7 +159,11 @@ public class SalesServiceImpl implements SalesService {
             log.info("[주문 상태 변경 스킵 - 이미 취소됨] orderId: {}, salesId: {}", orderId, salesId);
             return;
         }
+        boolean shouldCancelDelivery = sales.isCompleted();
         sales.cancel(reason);
+        if (shouldCancelDelivery) {
+            publishDeliveryCancelRequestedEvent(orderId, salesId, reason);
+        }
         log.info("[주문 취소 완료] orderId: {}, salesId: {}, status: {}",
                 orderId, salesId, sales.getStatus());
 
@@ -161,6 +193,17 @@ public class SalesServiceImpl implements SalesService {
                 .collect(Collectors.toList());
     }
 
+    private DeliveryAddressSnapshot toDeliveryAddressSnapshot(ReqCreateSalesDTO.DeliveryAddress deliveryAddress) {
+        return DeliveryAddressSnapshot.create(
+                deliveryAddress.getRecipientName(),
+                deliveryAddress.getRecipientPhone(),
+                deliveryAddress.getZipCode(),
+                deliveryAddress.getAddress(),
+                deliveryAddress.getAddressDetail(),
+                deliveryAddress.getDeliveryMemo()
+        );
+    }
+
     private void publishOrderCreatedEvent(String orderId, SalesEntity sales) {
         List<OrderCreatedInternalEvent.OrderItem> items = sales.getItems().stream()
                 .map(item -> OrderCreatedInternalEvent.OrderItem.builder()
@@ -179,6 +222,14 @@ public class SalesServiceImpl implements SalesService {
         );
 
         eventPublisher.publishEvent(event);
+    }
+
+    private void publishDeliveryCreateRequestedEvent(SalesEntity sales) {
+        eventPublisher.publishEvent(DeliveryCreateRequestedInternalEvent.from(sales));
+    }
+
+    private void publishDeliveryCancelRequestedEvent(String orderId, Long salesId, String reason) {
+        eventPublisher.publishEvent(DeliveryCancelRequestedInternalEvent.of(orderId, salesId, reason));
     }
 
     private void recordE2EDurationIfPossible(SalesEntity sales, String orderId) {

@@ -1,6 +1,8 @@
 package com.project.orderservice.application.event.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.orderservice.application.event.DeliveryCancelRequestedInternalEvent;
+import com.project.orderservice.application.event.DeliveryCreateRequestedInternalEvent;
 import com.project.orderservice.application.event.OrderCreatedInternalEvent;
 import com.project.orderservice.domain.model.OutboxEntity.OutboxStatus;
 import com.project.orderservice.domain.repository.OutboxRepository;
@@ -17,7 +19,11 @@ import org.springframework.stereotype.Service;
 public class OrderEventSendService {
 
     private static final String TOPIC_ORDER_CREATED = "order-created";
+    private static final String TOPIC_DELIVERY_CREATE_REQUESTED = "delivery-create-requested";
+    private static final String TOPIC_DELIVERY_CANCEL_REQUESTED = "delivery-cancel-requested";
     private static final String EVENT_TYPE_ORDER_CREATED = "ORDER_CREATED";
+    private static final String EVENT_TYPE_DELIVERY_CREATE_REQUESTED = "DELIVERY_CREATE_REQUESTED";
+    private static final String EVENT_TYPE_DELIVERY_CANCEL_REQUESTED = "DELIVERY_CANCEL_REQUESTED";
     private static final int SEND_TIMEOUT_SECONDS = 10;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -35,26 +41,74 @@ public class OrderEventSendService {
     }
 
     public void sendOrderCreated(OrderCreatedInternalEvent event) {
+        sendEvent(
+                TOPIC_ORDER_CREATED,
+                EVENT_TYPE_ORDER_CREATED,
+                event.getAggregateId(),
+                event.getMessageKey(),
+                event,
+                event.getOrderId(),
+                event.getSalesId(),
+                "주문 생성"
+        );
+    }
+
+    public void sendDeliveryCreateRequested(DeliveryCreateRequestedInternalEvent event) {
+        sendEvent(
+                TOPIC_DELIVERY_CREATE_REQUESTED,
+                EVENT_TYPE_DELIVERY_CREATE_REQUESTED,
+                event.getAggregateId(),
+                event.getMessageKey(),
+                event,
+                event.getOrderId(),
+                event.getSalesId(),
+                "배송 생성 요청"
+        );
+    }
+
+    public void sendDeliveryCancelRequested(DeliveryCancelRequestedInternalEvent event) {
+        sendEvent(
+                TOPIC_DELIVERY_CANCEL_REQUESTED,
+                EVENT_TYPE_DELIVERY_CANCEL_REQUESTED,
+                event.getAggregateId(),
+                event.getMessageKey(),
+                event,
+                event.getOrderId(),
+                event.getSalesId(),
+                "배송 취소 요청"
+        );
+    }
+
+    private void sendEvent(
+            String topic,
+            String eventType,
+            String aggregateId,
+            String messageKey,
+            Object event,
+            String orderId,
+            Long salesId,
+            String eventName
+    ) {
         var previousMdc = MDC.getCopyOfContextMap();
         try {
-            MDC.put("orderId", event.getOrderId());
-            MDC.put("salesId", String.valueOf(event.getSalesId()));
+            MDC.put("orderId", orderId);
+            MDC.put("salesId", String.valueOf(salesId));
 
             try {
                 String payload = objectMapper.writeValueAsString(event);
-                kafkaTemplate.send(TOPIC_ORDER_CREATED, event.getMessageKey(), payload)
+                kafkaTemplate.send(topic, messageKey, payload)
                         .get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Exception e) {
                 String errorMessage = resolveErrorMessage(e);
-                markOutboxFail(event.getAggregateId(), EVENT_TYPE_ORDER_CREATED, errorMessage);
-                log.warn("[Kafka] 주문 생성 이벤트 발행 실패 (Outbox Relay가 재시도) - salesId: {}, error: {}",
-                        event.getSalesId(), errorMessage);
+                markOutboxFail(aggregateId, eventType, errorMessage);
+                log.warn("[Kafka] {} 이벤트 발행 실패 (Outbox Relay가 재시도) - topic: {}, salesId: {}, error: {}",
+                        eventName, topic, salesId, errorMessage);
                 return;
             }
 
-            markOutboxSuccess(event.getAggregateId(), EVENT_TYPE_ORDER_CREATED);
-            log.info("[Kafka] 주문 생성 이벤트 발행 - orderId: {}, salesId: {}",
-                    event.getOrderId(), event.getSalesId());
+            markOutboxSuccess(aggregateId, eventType);
+            log.info("[Kafka] {} 이벤트 발행 - topic: {}, orderId: {}, salesId: {}",
+                    eventName, topic, orderId, salesId);
         } finally {
             if (previousMdc != null) {
                 MDC.setContextMap(previousMdc);

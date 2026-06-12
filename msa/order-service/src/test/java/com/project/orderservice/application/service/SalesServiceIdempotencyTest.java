@@ -1,8 +1,10 @@
 package com.project.orderservice.application.service;
 
+import com.project.orderservice.domain.model.DeliveryAddressSnapshot;
 import com.project.orderservice.domain.model.SalesEntity;
 import com.project.orderservice.domain.model.SalesItemEntity;
 import com.project.orderservice.domain.model.SalesStatus;
+import com.project.orderservice.domain.repository.SalesDeliveryStatusRepository;
 import com.project.orderservice.domain.repository.SalesRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -31,6 +34,12 @@ class SalesServiceIdempotencyTest {
     @Mock
     private SalesRepository salesRepository;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private SalesDeliveryStatusRepository salesDeliveryStatusRepository;
+
     private SalesServiceImpl salesService;
 
     private String orderId;
@@ -41,8 +50,9 @@ class SalesServiceIdempotencyTest {
         salesService = new SalesServiceImpl(
                 salesRepository,
                 null, // productCacheClient
-                null, // eventPublisher
-                new SimpleMeterRegistry()
+                eventPublisher,
+                new SimpleMeterRegistry(),
+                salesDeliveryStatusRepository
         );
 
         orderId = "order-test-123";
@@ -51,7 +61,7 @@ class SalesServiceIdempotencyTest {
 
     private SalesEntity createSalesEntity(SalesStatus status) {
         SalesItemEntity item = SalesItemEntity.create(1L, "테스트 상품", 2, 10000);
-        SalesEntity sales = SalesEntity.createWithItems(orderId, List.of(item));
+        SalesEntity sales = SalesEntity.createWithItems(orderId, 1L, deliveryAddress(), List.of(item));
         ReflectionTestUtils.setField(sales, "id", salesId);
 
         // 상태 변경
@@ -64,6 +74,17 @@ class SalesServiceIdempotencyTest {
         }
 
         return sales;
+    }
+
+    private DeliveryAddressSnapshot deliveryAddress() {
+        return DeliveryAddressSnapshot.create(
+                "테스트 수령인",
+                "010-0000-0000",
+                "00000",
+                "테스트 주소",
+                null,
+                null
+        );
     }
 
     @Nested

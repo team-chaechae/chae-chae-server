@@ -1,5 +1,7 @@
 package com.project.orderservice.application.event.listener;
 
+import com.project.orderservice.application.event.DeliveryCancelRequestedInternalEvent;
+import com.project.orderservice.application.event.DeliveryCreateRequestedInternalEvent;
 import com.project.orderservice.application.event.OrderCreatedInternalEvent;
 import com.project.orderservice.application.event.service.OrderEventSendService;
 import lombok.RequiredArgsConstructor;
@@ -28,5 +30,19 @@ public class OrderEventPublishListener {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishOrderCreated(OrderCreatedInternalEvent event) {
         sendService.sendOrderCreated(event);
+    }
+
+    @Async(OrderEventAsyncConfig.ORDER_EVENT_ASYNC_TASK_EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void publishDeliveryCreateRequested(DeliveryCreateRequestedInternalEvent event) {
+        sendService.sendDeliveryCreateRequested(event);
+    }
+
+    @Async(OrderEventAsyncConfig.ORDER_EVENT_ASYNC_TASK_EXECUTOR)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void publishDeliveryCancelRequested(DeliveryCancelRequestedInternalEvent event) {
+        sendService.sendDeliveryCancelRequested(event);
     }
 }
