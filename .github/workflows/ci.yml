@@ -128,13 +128,12 @@ jobs:
 
   deploy-oci:
     name: Deploy to OCI
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, oci-deploy]
     needs: docker
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     environment: oci
     steps:
       - name: Deploy with docker compose
-        uses: appleboy/ssh-action@v1.0.3
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
@@ -145,89 +144,76 @@ jobs:
           INVENTORY_SERVICE_REPLICAS: ${{ vars.INVENTORY_SERVICE_REPLICAS || '1' }}
           ORDER_SERVICE_REPLICAS: ${{ vars.ORDER_SERVICE_REPLICAS || '1' }}
           PAYMENT_SERVICE_REPLICAS: ${{ vars.PAYMENT_SERVICE_REPLICAS || '1' }}
-        with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USERNAME }}
-          key: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.OCI_SSH_PORT || 22 }}
-          envs: DOCKER_HUB_USERNAME,DOCKER_HUB_TOKEN,GH_DEPLOY_TOKEN,GITHUB_REPOSITORY,IMAGE_TAG,OCI_APP_DIR,INVENTORY_SERVICE_REPLICAS,ORDER_SERVICE_REPLICAS,PAYMENT_SERVICE_REPLICAS
-          command_timeout: 30m
-          script: |
-            set -euo pipefail
+        run: |
+          set -euo pipefail
 
-            run_as_root() {
-              if command -v sudo >/dev/null 2>&1; then
-                sudo "$@"
-              else
-                "$@"
-              fi
-            }
+          if ! command -v git >/dev/null 2>&1; then
+            echo "git is required on the self-hosted runner" >&2
+            exit 1
+          fi
 
-            if ! command -v git >/dev/null 2>&1; then
-              run_as_root apt-get update
-              run_as_root apt-get install -y git
-            fi
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "docker is required on the self-hosted runner" >&2
+            exit 1
+          fi
 
-            if ! command -v docker >/dev/null 2>&1; then
-              run_as_root apt-get update
-              run_as_root apt-get install -y docker.io
-            fi
-
-            if ! docker compose version >/dev/null 2>&1; then
-              run_as_root apt-get install -y docker-compose-v2
-            fi
-
-            run_as_root systemctl enable --now docker || run_as_root service docker start || true
-
-            docker_cli() {
-              if docker info >/dev/null 2>&1; then
-                docker "$@"
-              else
-                run_as_root docker "$@"
-              fi
-            }
-
-            OCI_APP_DIR="$(printf '%s' "$OCI_APP_DIR" | tr -d '\r\n')"
-            REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
-            AUTH_REPO_URL="https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-
-            if [ ! -d "$OCI_APP_DIR/.git" ]; then
-              if [ -e "$OCI_APP_DIR" ]; then
-                echo "OCI_APP_DIR exists but is not a git repository: $OCI_APP_DIR" >&2
-                exit 1
-              fi
-
-              mkdir -p "$(dirname "$OCI_APP_DIR")"
-              git clone --branch develop --single-branch "$AUTH_REPO_URL" "$OCI_APP_DIR"
-              git -C "$OCI_APP_DIR" remote set-url origin "$REPO_URL"
-            fi
-
-            cd "$OCI_APP_DIR"
-
-            git checkout develop
-            git pull --ff-only "$AUTH_REPO_URL" develop
-            git remote set-url origin "$REPO_URL"
-
-            if [ -f docker-compose.yml ]; then
-              COMPOSE_DIR="$PWD"
-            elif [ -f msa/docker-compose.yml ]; then
-              COMPOSE_DIR="$PWD/msa"
+          docker_cli() {
+            if docker info >/dev/null 2>&1; then
+              docker "$@"
+            elif command -v sudo >/dev/null 2>&1; then
+              sudo -E docker "$@"
             else
-              echo "docker-compose.yml not found under OCI_APP_DIR=$OCI_APP_DIR" >&2
+              echo "docker is not accessible by the runner user" >&2
+              exit 1
+            fi
+          }
+
+          if ! docker_cli compose version >/dev/null 2>&1; then
+            echo "docker compose is required on the self-hosted runner" >&2
+            exit 1
+          fi
+
+          OCI_APP_DIR="$(printf '%s' "$OCI_APP_DIR" | tr -d '\r\n')"
+          REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH_REPO_URL="https://x-access-token:${GH_DEPLOY_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if [ ! -d "$OCI_APP_DIR/.git" ]; then
+            if [ -e "$OCI_APP_DIR" ]; then
+              echo "OCI_APP_DIR exists but is not a git repository: $OCI_APP_DIR" >&2
               exit 1
             fi
 
-            printf '%s' "$DOCKER_HUB_TOKEN" | docker_cli login -u "$DOCKER_HUB_USERNAME" --password-stdin
+            mkdir -p "$(dirname "$OCI_APP_DIR")"
+            git clone --branch develop --single-branch "$AUTH_REPO_URL" "$OCI_APP_DIR"
+            git -C "$OCI_APP_DIR" remote set-url origin "$REPO_URL"
+          fi
 
-            export DOCKER_IMAGE_PREFIX="$DOCKER_HUB_USERNAME"
-            export IMAGE_TAG="$IMAGE_TAG"
-            export INVENTORY_SERVICE_REPLICAS="$INVENTORY_SERVICE_REPLICAS"
-            export ORDER_SERVICE_REPLICAS="$ORDER_SERVICE_REPLICAS"
-            export PAYMENT_SERVICE_REPLICAS="$PAYMENT_SERVICE_REPLICAS"
+          cd "$OCI_APP_DIR"
 
-            cd "$COMPOSE_DIR"
-            docker_cli compose --profile infra --profile app config --quiet
-            docker_cli compose --profile infra --profile app pull
-            docker_cli compose --profile infra --profile app up -d --no-build
-            docker_cli compose --profile infra --profile app ps
-            docker_cli image prune -f
+          git checkout develop
+          git pull --ff-only "$AUTH_REPO_URL" develop
+          git remote set-url origin "$REPO_URL"
+
+          if [ -f docker-compose.yml ]; then
+            COMPOSE_DIR="$PWD"
+          elif [ -f msa/docker-compose.yml ]; then
+            COMPOSE_DIR="$PWD/msa"
+          else
+            echo "docker-compose.yml not found under OCI_APP_DIR=$OCI_APP_DIR" >&2
+            exit 1
+          fi
+
+          printf '%s' "$DOCKER_HUB_TOKEN" | docker_cli login -u "$DOCKER_HUB_USERNAME" --password-stdin
+
+          export DOCKER_IMAGE_PREFIX="$DOCKER_HUB_USERNAME"
+          export IMAGE_TAG="$IMAGE_TAG"
+          export INVENTORY_SERVICE_REPLICAS="$INVENTORY_SERVICE_REPLICAS"
+          export ORDER_SERVICE_REPLICAS="$ORDER_SERVICE_REPLICAS"
+          export PAYMENT_SERVICE_REPLICAS="$PAYMENT_SERVICE_REPLICAS"
+
+          cd "$COMPOSE_DIR"
+          docker_cli compose --profile infra --profile app config --quiet
+          docker_cli compose --profile infra --profile app pull
+          docker_cli compose --profile infra --profile app up -d --no-build
+          docker_cli compose --profile infra --profile app ps
+          docker_cli image prune -f
