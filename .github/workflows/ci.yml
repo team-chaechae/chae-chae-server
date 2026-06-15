@@ -36,6 +36,8 @@ jobs:
           - inventory-service
           - order-service
           - payment-service
+          - coupon-service
+          - delivery-service
           - chatbot-service
     steps:
       - name: Checkout
@@ -79,6 +81,8 @@ jobs:
           - inventory-service
           - order-service
           - payment-service
+          - coupon-service
+          - delivery-service
           - chatbot-service
     steps:
       - name: Checkout
@@ -203,6 +207,33 @@ jobs:
             exit 1
           fi
 
+          cd "$COMPOSE_DIR"
+
+          REQUIRED_ENV_FILES=(
+            .env.user.mysql
+            .env.product.mysql
+            .env.inventory.mysql
+            .env.order.mysql
+            .env.chatbot.mysql
+            .env.payment
+            .env.coupon.mysql
+            .env.delivery.mysql
+            env.secret.key
+          )
+
+          MISSING_ENV_FILES=()
+          for env_file in "${REQUIRED_ENV_FILES[@]}"; do
+            if [ ! -f "$env_file" ]; then
+              MISSING_ENV_FILES+=("$env_file")
+            fi
+          done
+
+          if [ "${#MISSING_ENV_FILES[@]}" -gt 0 ]; then
+            printf 'Missing required compose env files under %s:\n' "$COMPOSE_DIR" >&2
+            printf ' - %s\n' "${MISSING_ENV_FILES[@]}" >&2
+            exit 1
+          fi
+
           printf '%s' "$DOCKER_HUB_TOKEN" | docker_cli login -u "$DOCKER_HUB_USERNAME" --password-stdin
 
           export DOCKER_IMAGE_PREFIX="$DOCKER_HUB_USERNAME"
@@ -211,7 +242,6 @@ jobs:
           export ORDER_SERVICE_REPLICAS="$ORDER_SERVICE_REPLICAS"
           export PAYMENT_SERVICE_REPLICAS="$PAYMENT_SERVICE_REPLICAS"
 
-          cd "$COMPOSE_DIR"
           docker_cli compose --profile infra --profile app config --quiet
           docker_cli compose --profile infra --profile app pull
           docker_cli compose --profile infra --profile app up -d --no-build
