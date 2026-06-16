@@ -1,5 +1,7 @@
 package com.project.inventoryservice.application.service.sales;
 
+import com.project.inventoryservice.application.global.exception.BusinessException;
+import com.project.inventoryservice.application.global.exception.ErrorCode;
 import com.project.inventoryservice.application.response.sales.ResSalesInventoryDTO;
 import com.project.inventoryservice.application.service.StockCacheService;
 import com.project.inventoryservice.infrastructure.kafka.InventoryEvent;
@@ -98,6 +100,29 @@ class SalesInventoryServiceImplTest {
         assertThat(response.getProcessedCount()).isZero();
         verify(stockCacheService, never()).decreaseStock(any(), any());
         verify(eventProducer, never()).publish(any(InventoryEvent.class));
+    }
+
+    @Test
+    @DisplayName("재고 부족이면 이벤트를 발행하지 않고 비즈니스 예외를 전달한다")
+    void decreaseInventory_WhenStockInsufficient_ThrowsBusinessExceptionWithoutPublishingEvent() {
+        // given
+        SalesInventoryServiceImpl service = service();
+        ReqSalesInventoryDTO request = request("payment-orchestration:7:inventory-deduct");
+        given(idempotencyService.execute(eq("payment-orchestration:7:inventory-deduct"), any()))
+                .willAnswer(invocation -> {
+                    Supplier<ResSalesInventoryDTO> command = invocation.getArgument(1);
+                    return command.get();
+                });
+        given(stockCacheService.decreaseStock(1999L, 2))
+                .willThrow(new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "재고 부족 - 상품ID: 1999"));
+
+        // when & then
+        assertThatThrownBy(() -> service.decreaseInventory(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("재고 부족");
+        verify(stockCacheService).decreaseStock(1999L, 2);
+        verify(eventProducer, never()).publish(any(InventoryEvent.class));
+        verify(stockCacheService, never()).increaseStock(any(), any());
     }
 
     @Test

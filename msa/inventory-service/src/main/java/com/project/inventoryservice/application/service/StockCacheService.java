@@ -1,5 +1,7 @@
 package com.project.inventoryservice.application.service;
 
+import com.project.inventoryservice.application.global.exception.BusinessException;
+import com.project.inventoryservice.application.global.exception.ErrorCode;
 import com.project.inventoryservice.domain.model.StockEntity;
 import com.project.inventoryservice.domain.repository.StockRepository;
 import jakarta.annotation.PostConstruct;
@@ -160,7 +162,7 @@ public class StockCacheService {
         // -1은 재고 부족을 의미
         if (newStock == -1) {
             log.warn("[재고 부족] 상품ID: {}, 시도 감소량: {}", productId, amount);
-            throw new RuntimeException("재고 부족 - 상품ID: " + productId);
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "재고 부족 - 상품ID: " + productId);
         }
 
         log.debug("[재고 차감] 상품ID: {}, 차감량: {}, 현재: {}", productId, amount, newStock);

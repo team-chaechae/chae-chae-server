@@ -10,7 +10,7 @@ services:
   mysql-user:
     image: mysql:8.0
     container_name: msa-mysql-user
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.user.mysql
     ports:
@@ -23,7 +23,7 @@ services:
   mysql-product:
     image: mysql:8.0
     container_name: msa-mysql-product
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.product.mysql
     ports:
@@ -36,7 +36,7 @@ services:
   mysql-inventory:
     image: mysql:8.0
     container_name: msa-mysql-inventory
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.inventory.mysql
     ports:
@@ -49,7 +49,7 @@ services:
   mysql-order:
     image: mysql:8.0
     container_name: msa-mysql-order
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.order.mysql
     ports:
@@ -62,7 +62,7 @@ services:
   mysql-chatbot:
     image: mysql:8.0
     container_name: msa-mysql-chatbot
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.chatbot.mysql
     ports:
@@ -75,7 +75,7 @@ services:
   mysql-payment:
     image: mysql:8.0
     container_name: msa-mysql-payment
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.payment
     ports:
@@ -88,7 +88,7 @@ services:
   mysql-coupon:
     image: mysql:8.0
     container_name: msa-mysql-coupon
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.coupon.mysql
     ports:
@@ -101,7 +101,7 @@ services:
   mysql-delivery:
     image: mysql:8.0
     container_name: msa-mysql-delivery
-    profiles: [infra]
+    profiles: [infra, app]
     env_file:
       - .env.delivery.mysql
     ports:
@@ -115,7 +115,7 @@ services:
   redis-master:
     image: redis:7-alpine
     container_name: msa-redis-master
-    profiles: [infra]
+    profiles: [infra, app]
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
@@ -126,7 +126,7 @@ services:
   redis-slave:
     image: redis:7-alpine
     container_name: msa-redis-slave
-    profiles: [infra]
+    profiles: [infra, app]
     command: redis-server --appendonly yes --replicaof redis-master 6379
     depends_on:
       - redis-master
@@ -139,7 +139,7 @@ services:
   redis-sentinel-1:
     image: redis:7-alpine
     container_name: msa-redis-sentinel-1
-    profiles: [infra]
+    profiles: [infra, app]
     command: >
       sh -c "sleep 5 &&
              echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
@@ -163,7 +163,7 @@ services:
   redis-sentinel-2:
     image: redis:7-alpine
     container_name: msa-redis-sentinel-2
-    profiles: [infra]
+    profiles: [infra, app]
     command: >
       sh -c "sleep 5 &&
              echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
@@ -187,7 +187,7 @@ services:
   redis-sentinel-3:
     image: redis:7-alpine
     container_name: msa-redis-sentinel-3
-    profiles: [infra]
+    profiles: [infra, app]
     command: >
       sh -c "sleep 5 &&
              echo 'sentinel resolve-hostnames yes' > /etc/sentinel.conf &&
@@ -211,7 +211,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: msa-zookeeper
-    profiles: [infra]
+    profiles: [infra, app]
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -224,7 +224,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: msa-kafka
-    profiles: [infra]
+    profiles: [infra, app]
     depends_on:
       - zookeeper
     ports:

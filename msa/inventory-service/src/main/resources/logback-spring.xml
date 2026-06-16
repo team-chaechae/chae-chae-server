@@ -37,34 +37,50 @@
         <neverBlock>true</neverBlock>
     </appender>
 
-    <!-- Loki4j Appender (direct push to Loki) -->
-    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
-        <http>
-            <url>http://${LOKI_HOST:-localhost}:${LOKI_PORT:-3100}/loki/api/v1/push</url>
-        </http>
-        <format>
-            <label>
-                <pattern>app=${appName},level=%level</pattern>
-            </label>
-            <message>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-            </message>
-        </format>
-    </appender>
+    <springProfile name="!prod &amp; !observability">
+        <!-- Root Logger -->
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_FILE"/>
+        </root>
 
-    <!-- Root Logger -->
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="ASYNC_JSON_FILE"/>
-        <appender-ref ref="LOKI"/>
-    </root>
+        <!-- Application specific loggers -->
+        <logger name="com.project.inventoryservice" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_FILE"/>
+        </logger>
+    </springProfile>
 
-    <!-- Application specific loggers -->
-    <logger name="com.project.inventoryservice" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="ASYNC_JSON_FILE"/>
-        <appender-ref ref="LOKI"/>
-    </logger>
+    <springProfile name="prod | observability">
+        <!-- Loki4j Appender (direct push to Loki) -->
+        <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+            <http>
+                <url>http://${LOKI_HOST:-localhost}:${LOKI_PORT:-3100}/loki/api/v1/push</url>
+            </http>
+            <format>
+                <label>
+                    <pattern>app=${appName},level=%level</pattern>
+                </label>
+                <message>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                </message>
+            </format>
+        </appender>
+
+        <!-- Root Logger -->
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_FILE"/>
+            <appender-ref ref="LOKI"/>
+        </root>
+
+        <!-- Application specific loggers -->
+        <logger name="com.project.inventoryservice" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_FILE"/>
+            <appender-ref ref="LOKI"/>
+        </logger>
+    </springProfile>
 
     <!-- Reduce noise from frameworks -->
     <logger name="org.springframework" level="WARN"/>
