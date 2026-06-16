@@ -115,6 +115,53 @@ class PaymentOrchestrationServiceTest {
     }
 
     @Test
+    @DisplayName("재고 차감 실패 후 환불이 실패해도 주문 취소를 먼저 반영하고 재처리를 유도한다")
+    void handlePaymentCompleted_WhenRefundFailsDuringInventoryCompensation_CancelsSalesAndRethrows() {
+        // given
+        PaymentOrchestrationService service = service();
+        PaymentCompletedEvent event = paymentCompletedEvent();
+        givenStartedOrchestration();
+        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
+                .willThrow(new RuntimeException("재고 부족"));
+        doThrow(new RuntimeException("payment unavailable"))
+                .when(paymentFeignClient).refundPayment(eq(7L), any(String.class));
+
+        // when & then
+        assertThatThrownBy(() -> service.handlePaymentCompleted(event))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("payment unavailable");
+
+        verify(paymentFeignClient).refundPayment(eq(7L), contains("재고 차감 실패"));
+        verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("재고 차감 실패"));
+        verify(orchestrationStateService).markOrderCancelled(any(PaymentOrchestrationEntity.class));
+        verify(salesService, never()).completeSales(any(), any());
+    }
+
+    @Test
+    @DisplayName("주문 취소는 됐지만 환불이 남은 보상 이벤트는 환불만 이어서 처리한다")
+    void handlePaymentCompleted_WhenOrderCancelledButRefundPending_RetriesRefundOnly() {
+        // given
+        PaymentOrchestrationService service = service();
+        PaymentCompletedEvent event = paymentCompletedEvent();
+        PaymentOrchestrationEntity orchestration = PaymentOrchestrationEntity.start("order-7", 7L);
+        orchestration.startCompensation("재고 차감 실패");
+        orchestration.markOrderCancelled();
+
+        given(orchestrationStateService.getOrCreate("order-7", 7L)).willReturn(orchestration);
+        givenStateTransitionsReturnSameEntity();
+
+        // when
+        service.handlePaymentCompleted(event);
+
+        // then
+        verify(inventoryFeignClient, never()).decreaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(inventoryFeignClient, never()).increaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(paymentFeignClient).refundPayment(eq(7L), contains("재고 차감 실패"));
+        verify(salesService, never()).cancelSales(any(), any(), any());
+        verify(orchestrationStateService).markPaymentRefunded(any(PaymentOrchestrationEntity.class));
+    }
+
+    @Test
     @DisplayName("결제 완료 이벤트 상품 정보가 잘못되면 재고 호출 없이 결제를 환불하고 주문을 취소한다")
     void handlePaymentCompleted_WhenInventoryItemInvalid_RefundsWithoutInventoryCall() {
         // given
@@ -194,7 +241,7 @@ class PaymentOrchestrationServiceTest {
     }
 
     @Test
-    @DisplayName("재고 복구 성공 후 상태 저장 실패 상태에서 재처리되면 현재 구현은 재고 복구를 다시 호출한다")
+    @DisplayName("재고 복구 체크포인트 저장 실패 상태에서도 남은 보상은 시도하고 재처리를 유도한다")
     void handlePaymentCompleted_WhenInventoryRestoreCheckpointFailsAndRetried_RestoresInventoryAgain() {
         // given
         PaymentOrchestrationService service = service();
@@ -202,6 +249,7 @@ class PaymentOrchestrationServiceTest {
         PaymentOrchestrationEntity firstAttempt = compensatingAfterInventoryDeducted();
         PaymentOrchestrationEntity retryAttempt = compensatingAfterInventoryDeducted();
 
+        givenStateTransitionsReturnSameEntity();
         given(orchestrationStateService.getOrCreate("order-7", 7L))
                 .willReturn(firstAttempt)
                 .willReturn(retryAttempt);
@@ -227,8 +275,8 @@ class PaymentOrchestrationServiceTest {
         assertThat(requestCaptor.getAllValues())
                 .extracting(InventoryChangeDTO.Request::getOperationId)
                 .containsOnly("payment-orchestration:7:inventory-restore");
-        verify(paymentFeignClient, never()).refundPayment(any(), any());
-        verify(salesService, never()).cancelSales(any(), any(), any());
+        verify(paymentFeignClient, times(2)).refundPayment(eq(7L), contains("주문 완료 실패"));
+        verify(salesService, times(2)).cancelSales(eq(7L), eq("order-7"), contains("주문 완료 실패"));
     }
 
     @Test

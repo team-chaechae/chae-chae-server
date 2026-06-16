@@ -28,7 +28,7 @@ spring:
       spec: maximumSize=500,expireAfterWrite=600s
 
   kafka:
-    bootstrap-servers: localhost:9093
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -48,7 +48,7 @@ eureka:
     fetch-registry: true
   instance:
     hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
-    prefer-ip-address: false
+    prefer-ip-address: ${EUREKA_INSTANCE_PREFER_IP_ADDRESS:false}
 
 management:
   endpoints:
@@ -61,6 +61,7 @@ management:
     health:
       show-details: always
   tracing:
+    enabled: ${TRACING_ENABLED:true}
     sampling:
       probability: 1.0
   otlp:

@@ -106,13 +106,32 @@ public class PaymentOrchestrationService {
         String orderId = event.getOrderId();
         Long salesId = event.getSalesId();
         String reason = resolveCompensationReason(orchestration);
+        RuntimeException compensationFailure = null;
 
         log.warn("[결제 완료 오케스트레이션 보상 시작] orderId: {}, salesId: {}, reason: {}",
                 orderId, salesId, reason);
 
-        orchestration = restoreInventoryIfNeeded(event, orchestration);
-        orchestration = refundPaymentIfNeeded(orchestration, reason);
-        cancelOrderIfNeeded(event, orchestration, reason);
+        try {
+            orchestration = restoreInventoryIfNeeded(event, orchestration);
+        } catch (RuntimeException e) {
+            compensationFailure = appendCompensationFailure(compensationFailure, "재고 복구", e);
+        }
+
+        try {
+            orchestration = refundPaymentIfNeeded(orchestration, reason);
+        } catch (RuntimeException e) {
+            compensationFailure = appendCompensationFailure(compensationFailure, "결제 환불", e);
+        }
+
+        try {
+            cancelOrderIfNeeded(event, orchestration, reason);
+        } catch (RuntimeException e) {
+            compensationFailure = appendCompensationFailure(compensationFailure, "주문 취소", e);
+        }
+
+        if (compensationFailure != null) {
+            throw compensationFailure;
+        }
 
         log.info("[결제 완료 오케스트레이션 보상 완료] orderId: {}, salesId: {}",
                 orderId, salesId);
@@ -212,6 +231,20 @@ public class PaymentOrchestrationService {
                 throw new IllegalArgumentException("결제 완료 이벤트 상품 수량은 1 이상이어야 합니다.");
             }
         }
+    }
+
+    private RuntimeException appendCompensationFailure(
+            RuntimeException current,
+            String stepName,
+            RuntimeException failure
+    ) {
+        log.warn("[결제 완료 오케스트레이션 보상 단계 실패] step: {}, error: {}",
+                stepName, failure.getMessage(), failure);
+        if (current == null) {
+            return failure;
+        }
+        current.addSuppressed(failure);
+        return current;
     }
 
     private String buildReason(String reasonPrefix, Throwable cause) {

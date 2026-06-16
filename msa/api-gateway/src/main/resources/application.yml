@@ -69,6 +69,8 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
     register-with-eureka: true
     fetch-registry: true
+  instance:
+    prefer-ip-address: ${EUREKA_INSTANCE_PREFER_IP_ADDRESS:false}
 
 management:
   endpoints:
@@ -81,6 +83,7 @@ management:
     health:
       show-details: always
   tracing:
+    enabled: ${TRACING_ENABLED:true}
     sampling:
       probability: 1.0
   otlp:

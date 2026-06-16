@@ -537,10 +537,10 @@ services:
       - REDIS_SENTINEL_PORT_3=26379
       - REDIS_HOST=redis-master
       - REDIS_PORT=6379
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - TRACING_ENABLED=false
       - LOKI_HOST=loki
       - LOKI_PORT=3100
-      - OTEL_COLLECTOR_HOST=otel-collector
-      - OTEL_COLLECTOR_PORT=4318
     networks:
       - msa-network
 
@@ -597,6 +597,7 @@ services:
       - redis-sentinel-1
       - redis-sentinel-2
       - redis-sentinel-3
+      - kafka
     env_file:
       - .env.product.mysql
     environment:
@@ -608,8 +609,9 @@ services:
       - REDIS_SENTINEL_PORT_1=26379
       - REDIS_SENTINEL_PORT_2=26379
       - REDIS_SENTINEL_PORT_3=26379
-      - OTEL_COLLECTOR_HOST=otel-collector
-      - OTEL_COLLECTOR_PORT=4318
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - TRACING_ENABLED=false
     networks:
       - msa-network
 
@@ -685,11 +687,10 @@ services:
       - SPRING_DATA_REDIS_HOST=redis-master
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - TRACING_ENABLED=false
       - LOKI_HOST=loki
       - LOKI_PORT=3100
-      - OTEL_COLLECTOR_HOST=otel-collector
-      - OTEL_COLLECTOR_PORT=4318
-      - TRACING_ENABLED=true
     volumes:
       - msa-logs:/logs
     networks:
@@ -715,11 +716,10 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-payment:3306/payment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - ORDER_SERVICE_BASE_URL=http://order-service:8084
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - TRACING_ENABLED=false
       - LOKI_HOST=loki
       - LOKI_PORT=3100
-      - OTEL_COLLECTOR_HOST=otel-collector
-      - OTEL_COLLECTOR_PORT=4318
-      - TRACING_ENABLED=true
     volumes:
       - msa-logs:/logs
     networks:

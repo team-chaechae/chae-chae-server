@@ -128,13 +128,24 @@ public class PaymentOrchestrationEntity {
     }
 
     public boolean isTerminal() {
-        return orderCompleted || orderCancelled || status == PaymentOrchestrationStatus.FAILED;
+        return orderCompleted || isCompensationCompleted() || status == PaymentOrchestrationStatus.FAILED;
     }
 
     public boolean isCompensating() {
         return status == PaymentOrchestrationStatus.COMPENSATING
                 || status == PaymentOrchestrationStatus.INVENTORY_RESTORED
-                || status == PaymentOrchestrationStatus.PAYMENT_REFUNDED;
+                || status == PaymentOrchestrationStatus.PAYMENT_REFUNDED
+                || isPartialCompensation();
+    }
+
+    private boolean isCompensationCompleted() {
+        return orderCancelled
+                && paymentRefunded
+                && (!inventoryDeducted || inventoryRestored);
+    }
+
+    private boolean isPartialCompensation() {
+        return orderCancelled && !isCompensationCompleted();
     }
 
     private String truncate(String message) {
