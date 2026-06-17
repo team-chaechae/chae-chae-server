@@ -648,9 +648,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - LOKI_HOST=loki
       - LOKI_PORT=3100
-      - OTEL_COLLECTOR_HOST=otel-collector
-      - OTEL_COLLECTOR_PORT=4318
-      - TRACING_ENABLED=true
+      - TRACING_ENABLED=false
     volumes:
       - msa-logs:/logs
     networks:
