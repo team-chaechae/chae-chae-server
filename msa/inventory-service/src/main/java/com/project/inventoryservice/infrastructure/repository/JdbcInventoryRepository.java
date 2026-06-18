@@ -122,26 +122,28 @@ public class JdbcInventoryRepository {
     }
 
     /**
-     * orderId로 CONFIRMED 이벤트 INSERT (이벤트 소싱)
+     * orderId로 예약 재고를 CONFIRMED 상태로 확정합니다.
      */
     public int confirmByOrderId(String orderId) {
-        String sql = "INSERT INTO inventory (product_id, quantity, change_type, order_id, status, created_at, updated_at) " +
-                     "VALUES (0, 0, 'CONFIRM', ?, 'CONFIRMED', NOW(), NOW())";
+        String sql = "UPDATE inventory " +
+                     "SET status = 'CONFIRMED', updated_at = NOW() " +
+                     "WHERE order_id = ? AND change_type = 'ORDER_DECREASE' AND status = 'RESERVED'";
 
-        int inserted = jdbcTemplate.update(sql, orderId);
-        log.info("[CONFIRM INSERT] orderId: {}, 삽입 건수: {}", orderId, inserted);
-        return inserted;
+        int updated = jdbcTemplate.update(sql, orderId);
+        log.info("[CONFIRM UPDATE] orderId: {}, 변경 건수: {}", orderId, updated);
+        return updated;
     }
 
     /**
-     * orderId로 CANCELLED 이벤트 INSERT (이벤트 소싱)
+     * orderId로 예약 재고를 CANCELLED 상태로 변경합니다.
      */
     public int cancelByOrderId(String orderId) {
-        String sql = "INSERT INTO inventory (product_id, quantity, change_type, order_id, status, created_at, updated_at) " +
-                     "VALUES (0, 0, 'CANCEL', ?, 'CANCELLED', NOW(), NOW())";
+        String sql = "UPDATE inventory " +
+                     "SET status = 'CANCELLED', updated_at = NOW() " +
+                     "WHERE order_id = ? AND change_type = 'ORDER_DECREASE' AND status = 'RESERVED'";
 
-        int inserted = jdbcTemplate.update(sql, orderId);
-        log.info("[CANCEL INSERT] orderId: {}, 삽입 건수: {}", orderId, inserted);
-        return inserted;
+        int updated = jdbcTemplate.update(sql, orderId);
+        log.info("[CANCEL UPDATE] orderId: {}, 변경 건수: {}", orderId, updated);
+        return updated;
     }
 }

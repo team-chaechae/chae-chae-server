@@ -10,7 +10,11 @@ import com.project.orderservice.infrastructure.client.ProductCacheClient;
 import com.project.orderservice.infrastructure.client.dto.ProductDTO;
 import com.project.orderservice.infrastructure.client.dto.StockReservationDTO;
 import com.project.orderservice.presentation.request.ReqCreateSalesDTO;
+import feign.FeignException;
+import feign.Request;
+import feign.Response;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -159,6 +163,36 @@ class SalesServiceImplCreateTest {
     }
 
     @Test
+    @DisplayName("재고 예약 API가 400을 반환하면 도메인 BadRequest로 변환하고 주문 생성 이벤트를 발행하지 않는다")
+    void createSales_WhenStockReservationReturnsBadRequest_ThrowsBadRequestWithoutPublishingEvent() {
+        ReqCreateSalesDTO dto = ReqCreateSalesDTO.builder()
+                .userId(1L)
+                .deliveryAddress(deliveryAddress())
+                .salesItems(List.of(
+                        ReqCreateSalesDTO.SalesItem.builder().productId(10L).quantity(2).build()
+                ))
+                .build();
+
+        given(productCacheClient.getProductsByIds(List.of(10L))).willReturn(Map.of(
+                10L, ProductDTO.builder().productId(10L).name("사과").price(1000).build()
+        ));
+        given(salesRepository.save(org.mockito.ArgumentMatchers.any(SalesEntity.class)))
+                .willAnswer(invocation -> {
+                    SalesEntity sales = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(sales, "id", 1L);
+                    return sales;
+                });
+        given(inventoryFeignClient.reserveStock(any(StockReservationDTO.ReserveRequest.class)))
+                .willThrow(stockReservationBadRequest());
+
+        assertThatThrownBy(() -> salesService.createSales(dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("재고 예약 실패");
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
     @DisplayName("재고 예약 후 주문 트랜잭션이 롤백되면 예약 재고를 해제한다")
     void createSales_WhenTransactionRollsBackAfterReservation_ReleasesReservedStock() {
         ReqCreateSalesDTO dto = ReqCreateSalesDTO.builder()
@@ -238,5 +272,24 @@ class SalesServiceImplCreateTest {
                 .addressDetail("101동 1001호")
                 .deliveryMemo("문 앞")
                 .build();
+    }
+
+    private FeignException stockReservationBadRequest() {
+        Request request = Request.create(
+                Request.HttpMethod.POST,
+                "/api/inventory/reservation/reserve",
+                Map.of(),
+                null,
+                StandardCharsets.UTF_8,
+                null
+        );
+        Response response = Response.builder()
+                .status(400)
+                .reason("Bad Request")
+                .request(request)
+                .body("{\"failureReason\":\"상품 10: 재고 부족\"}", StandardCharsets.UTF_8)
+                .build();
+
+        return FeignException.errorStatus("InventoryFeignClient#reserveStock", response);
     }
 }

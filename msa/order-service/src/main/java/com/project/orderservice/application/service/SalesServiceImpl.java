@@ -18,6 +18,7 @@ import com.project.orderservice.infrastructure.client.ProductCacheClient;
 import com.project.orderservice.infrastructure.client.dto.ProductDTO;
 import com.project.orderservice.infrastructure.client.dto.StockReservationDTO;
 import com.project.orderservice.presentation.request.ReqCreateSalesDTO;
+import feign.FeignException;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -201,13 +202,20 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private void reserveStock(String orderId, SalesEntity sales) {
-        StockReservationDTO.ReserveResponse response = inventoryFeignClient.reserveStock(
-                StockReservationDTO.ReserveRequest.builder()
-                        .orderId(orderId)
-                        .salesId(sales.getId())
-                        .items(toReserveItems(sales))
-                        .build()
-        );
+        StockReservationDTO.ReserveResponse response;
+        try {
+            response = inventoryFeignClient.reserveStock(
+                    StockReservationDTO.ReserveRequest.builder()
+                            .orderId(orderId)
+                            .salesId(sales.getId())
+                            .items(toReserveItems(sales))
+                            .build()
+            );
+        } catch (FeignException.BadRequest e) {
+            log.warn("[재고 예약 실패] orderId: {}, salesId: {}, status: {}, body: {}",
+                    orderId, sales.getId(), e.status(), e.contentUTF8());
+            throw new BadRequestException("재고 예약 실패: 재고 부족");
+        }
 
         if (response == null || !response.isSuccess()) {
             String reason = response == null ? "응답 없음" : response.getFailureReason();

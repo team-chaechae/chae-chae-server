@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
-        log.error("BusinessException: {}", e.getMessage());
+        log.warn("BusinessException: {}", e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
         return new ResponseEntity<>(
                 ErrorResponse.of(errorCode, e.getMessage()),
@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException e) {
-        log.error("BadRequestException: {}", e.getMessage());
+        log.warn("BadRequestException: {}", e.getMessage());
         return new ResponseEntity<>(
                 ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, e.getMessage()),
                 ErrorCode.INVALID_INPUT_VALUE.getHttpStatus()
@@ -73,7 +73,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<ErrorResponse> handleFeignException(FeignException e) {
-        log.error("FeignException: status={}, message={}", e.status(), e.getMessage());
+        if (e.status() >= 400 && e.status() < 500) {
+            log.warn("FeignException: status={}, message={}", e.status(), e.getMessage());
+        } else {
+            log.error("FeignException: status={}, message={}", e.status(), e.getMessage());
+        }
 
         HttpStatus status;
         String message;
