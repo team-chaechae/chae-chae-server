@@ -2,7 +2,7 @@ package com.project.orderservice.application.service;
 
 import com.project.orderservice.infrastructure.client.InventoryFeignClient;
 import com.project.orderservice.infrastructure.client.PaymentFeignClient;
-import com.project.orderservice.infrastructure.client.dto.InventoryChangeDTO;
+import com.project.orderservice.infrastructure.client.dto.StockReservationDTO;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import com.project.orderservice.domain.model.PaymentOrchestrationEntity;
 import java.time.LocalDateTime;
@@ -43,30 +43,31 @@ class PaymentOrchestrationServiceTest {
     private PaymentOrchestrationStateService orchestrationStateService;
 
     @Test
-    @DisplayName("결제 완료 이벤트를 받으면 재고 차감 후 주문을 완료한다")
-    void handlePaymentCompleted_DecreasesInventoryThenCompletesSales() {
+    @DisplayName("결제 완료 이벤트를 받으면 예약 재고를 확정한 후 주문을 완료한다")
+    void handlePaymentCompleted_ConfirmsInventoryReservationThenCompletesSales() {
         // given
         PaymentOrchestrationService service = service();
         PaymentCompletedEvent event = paymentCompletedEvent();
         givenStartedOrchestration();
-        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
+        given(inventoryFeignClient.confirmStock(any(StockReservationDTO.ConfirmRequest.class)))
+                .willReturn(StockReservationDTO.ConfirmResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
                         .success(true)
-                        .processedCount(2)
                         .build());
 
         // when
         service.handlePaymentCompleted(event);
 
         // then
-        ArgumentCaptor<InventoryChangeDTO.Request> requestCaptor =
-                ArgumentCaptor.forClass(InventoryChangeDTO.Request.class);
-        verify(inventoryFeignClient).decreaseInventory(requestCaptor.capture());
+        ArgumentCaptor<StockReservationDTO.ConfirmRequest> requestCaptor =
+                ArgumentCaptor.forClass(StockReservationDTO.ConfirmRequest.class);
+        verify(inventoryFeignClient).confirmStock(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getOrderId()).isEqualTo("order-7");
+        assertThat(requestCaptor.getValue().getSalesId()).isEqualTo(7L);
         assertThat(requestCaptor.getValue().getItems()).hasSize(2);
         assertThat(requestCaptor.getValue().getItems().get(0).getProductId()).isEqualTo(1999L);
-        assertThat(requestCaptor.getValue().getItems().get(0).getQuantity()).isEqualTo(2);
         assertThat(requestCaptor.getValue().getItems().get(1).getProductId()).isEqualTo(2000L);
-        assertThat(requestCaptor.getValue().getItems().get(1).getQuantity()).isEqualTo(1);
 
         verify(salesService).completeSales(7L, "order-7");
         verify(paymentFeignClient, never()).refundPayment(any(), any());
@@ -74,55 +75,77 @@ class PaymentOrchestrationServiceTest {
     }
 
     @Test
-    @DisplayName("재고 차감 실패 시 결제를 환불하고 주문을 취소한다")
-    void handlePaymentCompleted_WhenInventoryDecreaseFails_RefundsPaymentAndCancelsSales() {
+    @DisplayName("예약 재고 확정 실패 시 예약을 해제하고 결제를 환불하고 주문을 취소한다")
+    void handlePaymentCompleted_WhenInventoryConfirmFails_ReleasesReservationRefundsPaymentAndCancelsSales() {
         // given
         PaymentOrchestrationService service = service();
         PaymentCompletedEvent event = paymentCompletedEvent();
         givenStartedOrchestration();
-        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
+        given(inventoryFeignClient.confirmStock(any(StockReservationDTO.ConfirmRequest.class)))
                 .willThrow(new RuntimeException("재고 부족"));
-
-        // when
-        service.handlePaymentCompleted(event);
-
-        // then
-        verify(paymentFeignClient).refundPayment(eq(7L), contains("재고 차감 실패"));
-        verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("재고 차감 실패"));
-        verify(salesService, never()).completeSales(any(), any());
-    }
-
-    @Test
-    @DisplayName("재고 차감 응답이 실패이면 결제를 환불하고 주문을 취소한다")
-    void handlePaymentCompleted_WhenInventoryResponseFails_RefundsPaymentAndCancelsSales() {
-        // given
-        PaymentOrchestrationService service = service();
-        PaymentCompletedEvent event = paymentCompletedEvent();
-        givenStartedOrchestration();
-        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
-                        .success(false)
-                        .processedCount(0)
+        given(inventoryFeignClient.releaseStock(any(StockReservationDTO.ReleaseRequest.class)))
+                .willReturn(StockReservationDTO.ReleaseResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
+                        .success(true)
                         .build());
 
         // when
         service.handlePaymentCompleted(event);
 
         // then
+        verify(inventoryFeignClient).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
         verify(paymentFeignClient).refundPayment(eq(7L), contains("재고 차감 실패"));
         verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("재고 차감 실패"));
         verify(salesService, never()).completeSales(any(), any());
     }
 
     @Test
-    @DisplayName("재고 차감 실패 후 환불이 실패해도 주문 취소를 먼저 반영하고 재처리를 유도한다")
+    @DisplayName("예약 재고 확정 응답이 실패이면 예약을 해제하고 결제를 환불하고 주문을 취소한다")
+    void handlePaymentCompleted_WhenInventoryConfirmResponseFails_ReleasesReservationRefundsPaymentAndCancelsSales() {
+        // given
+        PaymentOrchestrationService service = service();
+        PaymentCompletedEvent event = paymentCompletedEvent();
+        givenStartedOrchestration();
+        given(inventoryFeignClient.confirmStock(any(StockReservationDTO.ConfirmRequest.class)))
+                .willReturn(StockReservationDTO.ConfirmResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
+                        .success(false)
+                        .message("재고 예약 확정 실패")
+                        .build());
+        given(inventoryFeignClient.releaseStock(any(StockReservationDTO.ReleaseRequest.class)))
+                .willReturn(StockReservationDTO.ReleaseResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
+                        .success(true)
+                        .build());
+
+        // when
+        service.handlePaymentCompleted(event);
+
+        // then
+        verify(inventoryFeignClient).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
+        verify(paymentFeignClient).refundPayment(eq(7L), contains("재고 차감 실패"));
+        verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("재고 차감 실패"));
+        verify(salesService, never()).completeSales(any(), any());
+    }
+
+    @Test
+    @DisplayName("예약 확정 실패 후 환불이 실패해도 주문 취소를 먼저 반영하고 재처리를 유도한다")
     void handlePaymentCompleted_WhenRefundFailsDuringInventoryCompensation_CancelsSalesAndRethrows() {
         // given
         PaymentOrchestrationService service = service();
         PaymentCompletedEvent event = paymentCompletedEvent();
         givenStartedOrchestration();
-        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
+        given(inventoryFeignClient.confirmStock(any(StockReservationDTO.ConfirmRequest.class)))
                 .willThrow(new RuntimeException("재고 부족"));
+        given(inventoryFeignClient.releaseStock(any(StockReservationDTO.ReleaseRequest.class)))
+                .willReturn(StockReservationDTO.ReleaseResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
+                        .success(true)
+                        .build());
         doThrow(new RuntimeException("payment unavailable"))
                 .when(paymentFeignClient).refundPayment(eq(7L), any(String.class));
 
@@ -145,6 +168,7 @@ class PaymentOrchestrationServiceTest {
         PaymentCompletedEvent event = paymentCompletedEvent();
         PaymentOrchestrationEntity orchestration = PaymentOrchestrationEntity.start("order-7", 7L);
         orchestration.startCompensation("재고 차감 실패");
+        orchestration.markInventoryRestored();
         orchestration.markOrderCancelled();
 
         given(orchestrationStateService.getOrCreate("order-7", 7L)).willReturn(orchestration);
@@ -154,16 +178,16 @@ class PaymentOrchestrationServiceTest {
         service.handlePaymentCompleted(event);
 
         // then
-        verify(inventoryFeignClient, never()).decreaseInventory(any(InventoryChangeDTO.Request.class));
-        verify(inventoryFeignClient, never()).increaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(inventoryFeignClient, never()).confirmStock(any(StockReservationDTO.ConfirmRequest.class));
+        verify(inventoryFeignClient, never()).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
         verify(paymentFeignClient).refundPayment(eq(7L), contains("재고 차감 실패"));
         verify(salesService, never()).cancelSales(any(), any(), any());
         verify(orchestrationStateService).markPaymentRefunded(any(PaymentOrchestrationEntity.class));
     }
 
     @Test
-    @DisplayName("결제 완료 이벤트 상품 정보가 잘못되면 재고 호출 없이 결제를 환불하고 주문을 취소한다")
-    void handlePaymentCompleted_WhenInventoryItemInvalid_RefundsWithoutInventoryCall() {
+    @DisplayName("결제 완료 이벤트 상품 정보가 잘못되면 재고 호출 없이 보상을 시도하고 재처리를 유도한다")
+    void handlePaymentCompleted_WhenInventoryItemInvalid_RefundsCancelsAndRethrows() {
         // given
         PaymentOrchestrationService service = service();
         PaymentCompletedEvent event = paymentCompletedEvent(List.of(
@@ -174,11 +198,13 @@ class PaymentOrchestrationServiceTest {
         ));
         givenStartedOrchestration();
 
-        // when
-        service.handlePaymentCompleted(event);
+        // when & then
+        assertThatThrownBy(() -> service.handlePaymentCompleted(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("결제 완료 이벤트 상품 수량은 1 이상");
 
-        // then
-        verify(inventoryFeignClient, never()).decreaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(inventoryFeignClient, never()).confirmStock(any(StockReservationDTO.ConfirmRequest.class));
+        verify(inventoryFeignClient, never()).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
         verify(paymentFeignClient).refundPayment(eq(7L), contains("결제 완료 이벤트 상품 수량은 1 이상"));
         verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("결제 완료 이벤트 상품 수량은 1 이상"));
         verify(salesService, never()).completeSales(any(), any());
@@ -191,15 +217,17 @@ class PaymentOrchestrationServiceTest {
         PaymentOrchestrationService service = service();
         PaymentCompletedEvent event = paymentCompletedEvent();
         givenStartedOrchestration();
-        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
+        given(inventoryFeignClient.confirmStock(any(StockReservationDTO.ConfirmRequest.class)))
+                .willReturn(StockReservationDTO.ConfirmResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
                         .success(true)
-                        .processedCount(2)
                         .build());
-        given(inventoryFeignClient.increaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
+        given(inventoryFeignClient.releaseStock(any(StockReservationDTO.ReleaseRequest.class)))
+                .willReturn(StockReservationDTO.ReleaseResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
                         .success(true)
-                        .processedCount(2)
                         .build());
         doThrow(new RuntimeException("주문 DB 장애"))
                 .when(salesService).completeSales(7L, "order-7");
@@ -208,8 +236,8 @@ class PaymentOrchestrationServiceTest {
         service.handlePaymentCompleted(event);
 
         // then
-        verify(inventoryFeignClient).decreaseInventory(any(InventoryChangeDTO.Request.class));
-        verify(inventoryFeignClient).increaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(inventoryFeignClient).confirmStock(any(StockReservationDTO.ConfirmRequest.class));
+        verify(inventoryFeignClient).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
         verify(paymentFeignClient).refundPayment(eq(7L), contains("주문 완료 실패"));
         verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("주문 완료 실패"));
     }
@@ -224,18 +252,19 @@ class PaymentOrchestrationServiceTest {
 
         given(orchestrationStateService.getOrCreate("order-7", 7L)).willReturn(orchestration);
         givenStateTransitionsReturnSameEntity();
-        given(inventoryFeignClient.increaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
+        given(inventoryFeignClient.releaseStock(any(StockReservationDTO.ReleaseRequest.class)))
+                .willReturn(StockReservationDTO.ReleaseResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
                         .success(true)
-                        .processedCount(2)
                         .build());
 
         // when
         service.handlePaymentCompleted(event);
 
         // then
-        verify(inventoryFeignClient, never()).decreaseInventory(any(InventoryChangeDTO.Request.class));
-        verify(inventoryFeignClient).increaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(inventoryFeignClient, never()).confirmStock(any(StockReservationDTO.ConfirmRequest.class));
+        verify(inventoryFeignClient).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
         verify(paymentFeignClient).refundPayment(eq(7L), contains("주문 완료 실패"));
         verify(salesService).cancelSales(eq(7L), eq("order-7"), contains("주문 완료 실패"));
     }
@@ -253,10 +282,11 @@ class PaymentOrchestrationServiceTest {
         given(orchestrationStateService.getOrCreate("order-7", 7L))
                 .willReturn(firstAttempt)
                 .willReturn(retryAttempt);
-        given(inventoryFeignClient.increaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
+        given(inventoryFeignClient.releaseStock(any(StockReservationDTO.ReleaseRequest.class)))
+                .willReturn(StockReservationDTO.ReleaseResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
                         .success(true)
-                        .processedCount(2)
                         .build());
         given(orchestrationStateService.markInventoryRestored(any(PaymentOrchestrationEntity.class)))
                 .willThrow(new RuntimeException("checkpoint 저장 실패"));
@@ -269,38 +299,39 @@ class PaymentOrchestrationServiceTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("checkpoint 저장 실패");
 
-        ArgumentCaptor<InventoryChangeDTO.Request> requestCaptor =
-                ArgumentCaptor.forClass(InventoryChangeDTO.Request.class);
-        verify(inventoryFeignClient, times(2)).increaseInventory(requestCaptor.capture());
+        ArgumentCaptor<StockReservationDTO.ReleaseRequest> requestCaptor =
+                ArgumentCaptor.forClass(StockReservationDTO.ReleaseRequest.class);
+        verify(inventoryFeignClient, times(2)).releaseStock(requestCaptor.capture());
         assertThat(requestCaptor.getAllValues())
-                .extracting(InventoryChangeDTO.Request::getOperationId)
-                .containsOnly("payment-orchestration:7:inventory-restore");
+                .extracting(StockReservationDTO.ReleaseRequest::getReason)
+                .containsOnly("payment-orchestration:7:inventory-release");
         verify(paymentFeignClient, times(2)).refundPayment(eq(7L), contains("주문 완료 실패"));
         verify(salesService, times(2)).cancelSales(eq(7L), eq("order-7"), contains("주문 완료 실패"));
     }
 
     @Test
-    @DisplayName("재고 차감 요청에는 판매별 차감 멱등성 키를 포함한다")
-    void handlePaymentCompleted_SendsInventoryDeductOperationId() {
+    @DisplayName("재고 예약 확정 요청에는 주문 식별자를 포함한다")
+    void handlePaymentCompleted_SendsInventoryConfirmIdentifiers() {
         // given
         PaymentOrchestrationService service = service();
         PaymentCompletedEvent event = paymentCompletedEvent();
         givenStartedOrchestration();
-        given(inventoryFeignClient.decreaseInventory(any(InventoryChangeDTO.Request.class)))
-                .willReturn(InventoryChangeDTO.Response.builder()
+        given(inventoryFeignClient.confirmStock(any(StockReservationDTO.ConfirmRequest.class)))
+                .willReturn(StockReservationDTO.ConfirmResponse.builder()
+                        .orderId("order-7")
+                        .salesId(7L)
                         .success(true)
-                        .processedCount(2)
                         .build());
 
         // when
         service.handlePaymentCompleted(event);
 
         // then
-        ArgumentCaptor<InventoryChangeDTO.Request> requestCaptor =
-                ArgumentCaptor.forClass(InventoryChangeDTO.Request.class);
-        verify(inventoryFeignClient).decreaseInventory(requestCaptor.capture());
-        assertThat(requestCaptor.getValue().getOperationId())
-                .isEqualTo("payment-orchestration:7:inventory-deduct");
+        ArgumentCaptor<StockReservationDTO.ConfirmRequest> requestCaptor =
+                ArgumentCaptor.forClass(StockReservationDTO.ConfirmRequest.class);
+        verify(inventoryFeignClient).confirmStock(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getOrderId()).isEqualTo("order-7");
+        assertThat(requestCaptor.getValue().getSalesId()).isEqualTo(7L);
     }
 
     @Test
@@ -320,8 +351,8 @@ class PaymentOrchestrationServiceTest {
         service.handlePaymentCompleted(event);
 
         // then
-        verify(inventoryFeignClient, never()).decreaseInventory(any(InventoryChangeDTO.Request.class));
-        verify(inventoryFeignClient, never()).increaseInventory(any(InventoryChangeDTO.Request.class));
+        verify(inventoryFeignClient, never()).confirmStock(any(StockReservationDTO.ConfirmRequest.class));
+        verify(inventoryFeignClient, never()).releaseStock(any(StockReservationDTO.ReleaseRequest.class));
         verify(paymentFeignClient, never()).refundPayment(any(), any());
         verify(salesService, never()).completeSales(any(), any());
         verify(salesService, never()).cancelSales(any(), any(), any());

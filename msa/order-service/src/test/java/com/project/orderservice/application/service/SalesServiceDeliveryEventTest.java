@@ -48,6 +48,7 @@ class SalesServiceDeliveryEventTest {
         SalesServiceImpl service = new SalesServiceImpl(
                 salesRepository,
                 null,
+                null,
                 eventPublisher,
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
                 salesDeliveryStatusRepository
@@ -81,6 +82,7 @@ class SalesServiceDeliveryEventTest {
 
         SalesServiceImpl service = new SalesServiceImpl(
                 salesRepository,
+                null,
                 null,
                 eventPublisher,
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),

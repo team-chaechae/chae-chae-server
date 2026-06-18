@@ -69,6 +69,7 @@ class SalesServiceDeliveryCancelEventTest {
         return new SalesServiceImpl(
                 salesRepository,
                 null,
+                null,
                 eventPublisher,
                 new SimpleMeterRegistry(),
                 salesDeliveryStatusRepository

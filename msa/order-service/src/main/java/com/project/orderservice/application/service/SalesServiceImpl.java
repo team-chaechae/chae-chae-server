@@ -13,8 +13,10 @@ import com.project.orderservice.domain.model.SalesEntity;
 import com.project.orderservice.domain.model.SalesItemEntity;
 import com.project.orderservice.domain.repository.SalesDeliveryStatusRepository;
 import com.project.orderservice.domain.repository.SalesRepository;
+import com.project.orderservice.infrastructure.client.InventoryFeignClient;
 import com.project.orderservice.infrastructure.client.ProductCacheClient;
 import com.project.orderservice.infrastructure.client.dto.ProductDTO;
+import com.project.orderservice.infrastructure.client.dto.StockReservationDTO;
 import com.project.orderservice.presentation.request.ReqCreateSalesDTO;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
@@ -30,6 +32,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -38,6 +42,7 @@ public class SalesServiceImpl implements SalesService {
 
     private final SalesRepository salesRepository;
     private final ProductCacheClient productCacheClient;
+    private final InventoryFeignClient inventoryFeignClient;
     private final ApplicationEventPublisher eventPublisher;
     private final MeterRegistry meterRegistry;
     private final SalesDeliveryStatusRepository salesDeliveryStatusRepository;
@@ -64,6 +69,8 @@ public class SalesServiceImpl implements SalesService {
         );
         SalesEntity savedSales = salesRepository.save(sales);
 
+        reserveStock(orderId, savedSales);
+        registerReservationRollbackRelease(orderId, savedSales);
         publishOrderCreatedEvent(orderId, savedSales);
 
         log.info("[TIMING] 전체: {}ms", System.currentTimeMillis() - startTime);
@@ -191,6 +198,75 @@ public class SalesServiceImpl implements SalesService {
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    private void reserveStock(String orderId, SalesEntity sales) {
+        StockReservationDTO.ReserveResponse response = inventoryFeignClient.reserveStock(
+                StockReservationDTO.ReserveRequest.builder()
+                        .orderId(orderId)
+                        .salesId(sales.getId())
+                        .items(toReserveItems(sales))
+                        .build()
+        );
+
+        if (response == null || !response.isSuccess()) {
+            String reason = response == null ? "응답 없음" : response.getFailureReason();
+            throw new BadRequestException("재고 예약 실패: " + reason);
+        }
+    }
+
+    private void registerReservationRollbackRelease(String orderId, SalesEntity sales) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                    releaseReservedStock(orderId, sales, "주문 트랜잭션 롤백");
+                }
+            }
+        });
+    }
+
+    private void releaseReservedStock(String orderId, SalesEntity sales, String reason) {
+        try {
+            StockReservationDTO.ReleaseResponse response = inventoryFeignClient.releaseStock(
+                    StockReservationDTO.ReleaseRequest.builder()
+                            .orderId(orderId)
+                            .salesId(sales.getId())
+                            .reason(reason)
+                            .items(toReleaseItems(sales))
+                            .build()
+            );
+            if (response == null || !response.isSuccess()) {
+                String failureReason = response == null ? "응답 없음" : response.getMessage();
+                log.error("[재고 예약 해제 실패] orderId: {}, salesId: {}, reason: {}, response: {}",
+                        orderId, sales.getId(), reason, failureReason);
+            }
+        } catch (RuntimeException releaseFailure) {
+            log.error("[재고 예약 해제 실패] orderId: {}, salesId: {}, reason: {}, error: {}",
+                    orderId, sales.getId(), reason, releaseFailure.getMessage(), releaseFailure);
+        }
+    }
+
+    private List<StockReservationDTO.ReserveRequest.ReserveItem> toReserveItems(SalesEntity sales) {
+        return sales.getItems().stream()
+                .map(item -> StockReservationDTO.ReserveRequest.ReserveItem.builder()
+                        .productId(item.getProductId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+    }
+
+    private List<StockReservationDTO.ReleaseRequest.ReleaseItem> toReleaseItems(SalesEntity sales) {
+        return sales.getItems().stream()
+                .map(item -> StockReservationDTO.ReleaseRequest.ReleaseItem.builder()
+                        .productId(item.getProductId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
     }
 
     private DeliveryAddressSnapshot toDeliveryAddressSnapshot(ReqCreateSalesDTO.DeliveryAddress deliveryAddress) {

@@ -50,6 +50,7 @@ class SalesServiceIdempotencyTest {
         salesService = new SalesServiceImpl(
                 salesRepository,
                 null, // productCacheClient
+                null, // inventoryFeignClient
                 eventPublisher,
                 new SimpleMeterRegistry(),
                 salesDeliveryStatusRepository

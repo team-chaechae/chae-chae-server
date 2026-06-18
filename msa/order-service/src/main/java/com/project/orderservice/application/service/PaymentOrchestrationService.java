@@ -3,7 +3,7 @@ package com.project.orderservice.application.service;
 import com.project.orderservice.domain.model.PaymentOrchestrationEntity;
 import com.project.orderservice.infrastructure.client.InventoryFeignClient;
 import com.project.orderservice.infrastructure.client.PaymentFeignClient;
-import com.project.orderservice.infrastructure.client.dto.InventoryChangeDTO;
+import com.project.orderservice.infrastructure.client.dto.StockReservationDTO;
 import com.project.orderservice.infrastructure.kafka.dto.PaymentCompletedEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -67,7 +67,7 @@ public class PaymentOrchestrationService {
         }
 
         try {
-            decreaseInventory(event);
+            confirmInventoryReservation(event);
             return orchestrationStateService.markInventoryDeducted(orchestration);
         } catch (Exception e) {
             throw new OrchestrationStepException(INVENTORY_DECREASE_FAILURE_REASON, e);
@@ -141,7 +141,7 @@ public class PaymentOrchestrationService {
             PaymentCompletedEvent event,
             PaymentOrchestrationEntity orchestration
     ) {
-        if (!orchestration.isInventoryDeducted() || orchestration.isInventoryRestored()) {
+        if (orchestration.isInventoryRestored()) {
             return orchestration;
         }
 
@@ -174,39 +174,54 @@ public class PaymentOrchestrationService {
         orchestrationStateService.markOrderCancelled(orchestration);
     }
 
-    private void decreaseInventory(PaymentCompletedEvent event) {
-        InventoryChangeDTO.Response response = inventoryFeignClient.decreaseInventory(
-                InventoryChangeDTO.Request.builder()
-                        .operationId(inventoryOperationId(event.getSalesId(), "inventory-deduct"))
-                        .items(toInventoryItems(event.getItems()))
+    private void confirmInventoryReservation(PaymentCompletedEvent event) {
+        StockReservationDTO.ConfirmResponse response = inventoryFeignClient.confirmStock(
+                StockReservationDTO.ConfirmRequest.builder()
+                        .orderId(event.getOrderId())
+                        .salesId(event.getSalesId())
+                        .items(toConfirmItems(event.getItems()))
                         .build()
         );
 
         if (response == null || !response.isSuccess()) {
-            throw new IllegalStateException("재고 차감 실패 응답");
+            throw new IllegalStateException("재고 예약 확정 실패 응답");
         }
     }
 
     private void restoreInventory(PaymentCompletedEvent event) {
-        InventoryChangeDTO.Response response = inventoryFeignClient.increaseInventory(
-                InventoryChangeDTO.Request.builder()
-                        .operationId(inventoryOperationId(event.getSalesId(), "inventory-restore"))
-                        .items(toInventoryItems(event.getItems()))
+        StockReservationDTO.ReleaseResponse response = inventoryFeignClient.releaseStock(
+                StockReservationDTO.ReleaseRequest.builder()
+                        .orderId(event.getOrderId())
+                        .salesId(event.getSalesId())
+                        .reason(resolveReleaseReason(event))
+                        .items(toReleaseItems(event.getItems()))
                         .build()
         );
 
         if (response == null || !response.isSuccess()) {
-            throw new IllegalStateException("재고 복구 실패 응답");
+            throw new IllegalStateException("재고 예약 해제 실패 응답");
         }
     }
 
-    private List<InventoryChangeDTO.InventoryChangeItem> toInventoryItems(
+    private List<StockReservationDTO.ConfirmRequest.ConfirmItem> toConfirmItems(
             List<PaymentCompletedEvent.OrderItem> items
     ) {
         validateInventoryItems(items);
 
         return items.stream()
-                .map(item -> InventoryChangeDTO.InventoryChangeItem.builder()
+                .map(item -> StockReservationDTO.ConfirmRequest.ConfirmItem.builder()
+                        .productId(item.getProductId())
+                        .build())
+                .toList();
+    }
+
+    private List<StockReservationDTO.ReleaseRequest.ReleaseItem> toReleaseItems(
+            List<PaymentCompletedEvent.OrderItem> items
+    ) {
+        validateInventoryItems(items);
+
+        return items.stream()
+                .map(item -> StockReservationDTO.ReleaseRequest.ReleaseItem.builder()
                         .productId(item.getProductId())
                         .quantity(item.getQuantity())
                         .build())
@@ -270,8 +285,8 @@ public class PaymentOrchestrationService {
         return INVENTORY_DECREASE_FAILURE_REASON;
     }
 
-    private String inventoryOperationId(Long salesId, String step) {
-        return OPERATION_ID_PREFIX + salesId + ":" + step;
+    private String resolveReleaseReason(PaymentCompletedEvent event) {
+        return OPERATION_ID_PREFIX + event.getSalesId() + ":inventory-release";
     }
 
     private static class OrchestrationStepException extends RuntimeException {

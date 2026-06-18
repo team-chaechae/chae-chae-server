@@ -98,6 +98,7 @@ public class StockReservationDTO {
         @AllArgsConstructor
         public static class ReleaseItem {
             private Long productId;
+            private Integer quantity;
         }
     }
 
