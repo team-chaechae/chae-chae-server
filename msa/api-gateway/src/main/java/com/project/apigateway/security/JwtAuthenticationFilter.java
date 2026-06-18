@@ -40,7 +40,7 @@ public class JwtAuthenticationFilter implements WebFilter {
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         String token = jwtUtil.extractToken(authHeader);
 
-        log.info("[Gateway] 요청 수신: {} {} ", method, path);
+        log.debug("[Gateway] 요청 수신: {} {} ", method, path);
 
         // 토큰이 없으면 다음 필터로 (permitAll 경로는 SecurityConfig에서 처리)
         if (token == null) {
@@ -67,7 +67,7 @@ public class JwtAuthenticationFilter implements WebFilter {
                         return chain.filter(exchange);
                     }
 
-                    log.info("[Gateway] 인증 성공: user={}, role={}, path={}", email, role, path);
+                    log.debug("[Gateway] 인증 성공: user={}, role={}, path={}", email, role, path);
 
                     // Spring Security Authority 생성 (ROLE_ 접두사 필요)
                     List<SimpleGrantedAuthority> authorities = List.of(

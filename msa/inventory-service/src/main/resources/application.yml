@@ -73,8 +73,8 @@ logging:
   level:
     root: INFO
     com.project.inventoryservice: INFO
-    com.zaxxer.hikari: DEBUG
-    com.zaxxer.hikari.pool.HikariPool: DEBUG
+    com.zaxxer.hikari: ${LOGGING_LEVEL_COM_ZAXXER_HIKARI:INFO}
+    com.zaxxer.hikari.pool.HikariPool: ${LOGGING_LEVEL_COM_ZAXXER_HIKARI_POOL_HIKARIPOOL:INFO}
 
 loki:
   url: http://${LOKI_HOST:localhost}:${LOKI_PORT:3100}/loki/api/v1/push

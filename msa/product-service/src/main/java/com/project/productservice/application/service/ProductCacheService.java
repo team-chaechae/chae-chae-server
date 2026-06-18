@@ -6,6 +6,9 @@ import com.project.productservice.domain.repository.ProductsRepository;
 import com.project.productservice.infrastructure.config.TwoLevelCacheConfig;
 import com.project.productservice.infrastructure.config.TwoLevelCacheService;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -73,6 +76,23 @@ public class ProductCacheService {
     public ProductInternalDTO getProductInternal(Long productId) {
         ProductEntity product = productsRepository.findProductByProductId(productId);
         return ProductInternalDTO.from(product, productPriceService.resolve(product));
+    }
+
+    /**
+     * 내부 서비스용 상품 배치 조회.
+     * 동일 요청 안에서는 상품과 프로모션을 각각 한 번씩 배치 조회한다.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, ProductInternalDTO> getProductsInternal(List<Long> productIds) {
+        List<ProductEntity> products = productsRepository.findAllById(productIds);
+        Map<Long, ProductPriceSnapshot> priceSnapshots = productPriceService.resolveAll(products);
+
+        return products.stream()
+            .map(product -> ProductInternalDTO.from(product, priceSnapshots.get(product.getId())))
+            .collect(Collectors.toMap(
+                ProductInternalDTO::getProductId,
+                Function.identity()
+            ));
     }
 
     /**

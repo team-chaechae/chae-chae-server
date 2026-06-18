@@ -184,13 +184,7 @@ public class ProductsServiceImpl implements ProductsService {
     @Transactional(readOnly = true)
     public Map<Long, com.project.productservice.application.response.internal.ProductInternalDTO> getProductsForInternal(List<Long> productIds) {
         log.debug("Product internal batch cache lookup for {} products", productIds.size());
-
-        // 배치로 조회 (각각 캐시 적용)
-        Map<Long, com.project.productservice.application.response.internal.ProductInternalDTO> result = new java.util.HashMap<>();
-        for (Long productId : productIds) {
-            result.put(productId, productCacheService.getProductInternal(productId));
-        }
-        return result;
+        return productCacheService.getProductsInternal(productIds);
     }
 
     private void validatePromotion(ProductEntity product, ReqCreatePromotionDTO request, boolean checkOverlap) {

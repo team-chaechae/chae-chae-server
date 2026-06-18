@@ -82,10 +82,10 @@ logging:
   level:
     root: INFO
     com.project.orderservice: INFO
-    com.zaxxer.hikari: DEBUG
-    com.zaxxer.hikari.pool.HikariPool: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql: TRACE
+    com.zaxxer.hikari: ${LOGGING_LEVEL_COM_ZAXXER_HIKARI:INFO}
+    com.zaxxer.hikari.pool.HikariPool: ${LOGGING_LEVEL_COM_ZAXXER_HIKARI_POOL_HIKARIPOOL:INFO}
+    org.hibernate.SQL: ${LOGGING_LEVEL_ORG_HIBERNATE_SQL:WARN}
+    org.hibernate.type.descriptor.sql: ${LOGGING_LEVEL_ORG_HIBERNATE_TYPE_DESCRIPTOR_SQL:WARN}
 
 loki:
   url: http://${LOKI_HOST:localhost}:${LOKI_PORT:3100}/loki/api/v1/push
