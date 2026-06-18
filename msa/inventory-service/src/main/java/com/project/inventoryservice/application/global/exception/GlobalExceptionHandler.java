@@ -13,7 +13,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
-        log.error("BusinessException: {}", e.getMessage());
+        log.warn("BusinessException: {}", e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
         return new ResponseEntity<>(
                 ErrorResponse.of(errorCode, e.getMessage()),
